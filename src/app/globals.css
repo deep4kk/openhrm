@@ -1,26 +1,289 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
+
+/* ==========================================================================
+   OpenHRM design tokens
+   Direction: "quiet & precise" — flat surfaces, hairline borders, one accent.
+   Palette + type derived from the UI/UX Pro Max design system pass
+   (design-system/openhrm/MASTER.md): Inter, #2563EB primary, slate neutrals,
+   density 8/10, motion 3/10.
+   Every token is defined for BOTH themes — no theme-specific gaps.
+   ========================================================================== */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-sans);
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-subtle: var(--destructive-subtle);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-subtle: var(--success-subtle);
+
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-subtle: var(--warning-subtle);
+
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-subtle: var(--info-subtle);
+
+  --color-brand-text: var(--brand-text);
+
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* Radius — restrained. Linear/Vercel territory, not pill-shaped. */
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.5);
+  --radius-2xl: calc(var(--radius) * 2);
+  --radius-3xl: calc(var(--radius) * 2.5);
+  --radius-4xl: calc(var(--radius) * 3);
+
+  /* Density 8/10 — dashboard rhythm on a 4pt grid. */
+  --spacing-gutter: 1.5rem;
+  --spacing-section: 2rem;
+
+  /* Motion 3/10 — subtle. Everything is transform/opacity only. */
+  --ease-out-quiet: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --background: oklch(0.984 0.003 247.858); /* slate-50  */
+  --foreground: oklch(0.208 0.042 265.755); /* slate-900 */
+
+  --card: oklch(1 0 0); /* white — cards lift off the tinted page by value alone */
+  --card-foreground: oklch(0.208 0.042 265.755);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.208 0.042 265.755);
+
+  --primary: oklch(0.546 0.245 262.881); /* blue-600 #2563EB */
+  --primary-foreground: oklch(1 0 0); /* 5.17:1 — AA */
+
+  --secondary: oklch(0.968 0.007 247.896); /* slate-100 */
+  --secondary-foreground: oklch(0.208 0.042 265.755);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417); /* slate-500, 4.76:1 on card */
+  --accent: oklch(0.968 0.007 247.896);
+  --accent-foreground: oklch(0.208 0.042 265.755);
+
+  --brand-text: oklch(0.488 0.243 264.376); /* blue-700 — for links on light */
+
+  --destructive: oklch(0.577 0.245 27.325); /* red-600 */
+  --destructive-foreground: oklch(1 0 0);
+  --destructive-subtle: oklch(0.971 0.013 17.38); /* red-50 */
+
+  --success: oklch(0.596 0.145 163.225); /* emerald-600 */
+  --success-foreground: oklch(1 0 0);
+  --success-subtle: oklch(0.979 0.021 166.113); /* emerald-50 */
+
+  --warning: oklch(0.666 0.179 58.318); /* amber-600 */
+  --warning-foreground: oklch(1 0 0);
+  --warning-subtle: oklch(0.987 0.022 95.277); /* amber-50 */
+
+  --info: oklch(0.546 0.245 262.881);
+  --info-foreground: oklch(1 0 0);
+  --info-subtle: oklch(0.97 0.014 254.604); /* blue-50 */
+
+  --border: oklch(0.929 0.013 255.508); /* slate-200 — hairline */
+  --border-strong: oklch(0.869 0.022 252.894); /* slate-300 */
+  --input: oklch(0.929 0.013 255.508);
+  --ring: oklch(0.546 0.245 262.881);
+
+  /* Categorical chart ramp — distinguishable by hue AND lightness, so it
+     survives greyscale and the common colour-vision deficiencies. */
+  --chart-1: oklch(0.546 0.245 262.881); /* blue    */
+  --chart-2: oklch(0.596 0.145 163.225); /* emerald */
+  --chart-3: oklch(0.666 0.179 58.318); /* amber   */
+  --chart-4: oklch(0.606 0.25 292.717); /* violet  */
+  --chart-5: oklch(0.554 0.046 257.417); /* slate   */
+
+  --radius: 0.5rem;
+
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.372 0.044 257.287); /* slate-700 */
+  --sidebar-primary: oklch(0.546 0.245 262.881);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.546 0.245 262.881);
+}
+
+.dark {
+  --background: oklch(0.129 0.042 264.695); /* slate-950 */
+  --foreground: oklch(0.968 0.007 247.896); /* slate-100 */
+
+  --card: oklch(0.208 0.042 265.755); /* slate-900 */
+  --card-foreground: oklch(0.968 0.007 247.896);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.968 0.007 247.896);
+
+  --primary: oklch(0.546 0.245 262.881); /* same brand blue, white text = 5.17:1 */
+  --primary-foreground: oklch(1 0 0);
+
+  --secondary: oklch(0.279 0.041 260.031); /* slate-800 */
+  --secondary-foreground: oklch(0.968 0.007 247.896);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788); /* slate-400, 4.9:1 on slate-900 */
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.968 0.007 247.896);
+
+  --brand-text: oklch(0.707 0.165 254.624); /* blue-400 — links on dark */
+
+  --destructive: oklch(0.637 0.237 25.331); /* red-500, lifted for dark */
+  --destructive-foreground: oklch(1 0 0);
+  --destructive-subtle: oklch(0.271 0.105 12.094);
+
+  --success: oklch(0.696 0.17 162.48); /* emerald-500 */
+  --success-foreground: oklch(0.129 0.042 264.695);
+  --success-subtle: oklch(0.262 0.051 172.552);
+
+  --warning: oklch(0.769 0.188 70.08); /* amber-500 */
+  --warning-foreground: oklch(0.129 0.042 264.695);
+  --warning-subtle: oklch(0.279 0.077 45.635);
+
+  --info: oklch(0.707 0.165 254.624);
+  --info-foreground: oklch(0.129 0.042 264.695);
+  --info-subtle: oklch(0.282 0.091 267.935);
+
+  /* Borders stay visible in dark — a common failure mode we explicitly avoid. */
+  --border: oklch(1 0 0 / 12%);
+  --border-strong: oklch(1 0 0 / 20%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.707 0.165 254.624);
+
+  --chart-1: oklch(0.707 0.165 254.624); /* blue-400    */
+  --chart-2: oklch(0.765 0.177 163.223); /* emerald-400 */
+  --chart-3: oklch(0.828 0.189 84.429); /* amber-400   */
+  --chart-4: oklch(0.702 0.183 293.541); /* violet-400  */
+  --chart-5: oklch(0.704 0.04 256.788); /* slate-400   */
+
+  --sidebar: oklch(0.208 0.042 265.755);
+  --sidebar-foreground: oklch(0.869 0.022 252.894); /* slate-300 */
+  --sidebar-primary: oklch(0.707 0.165 254.624);
+  --sidebar-primary-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-accent: oklch(0.279 0.041 260.031);
+  --sidebar-accent-foreground: oklch(0.968 0.007 247.896);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.707 0.165 254.624);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings:
+      "cv02" 1,
+      "cv03" 1,
+      "cv04" 1;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Visible focus on every interactive element — never removed. */
+  :focus-visible {
+    @apply outline-ring outline-2 outline-offset-2;
+  }
+
+  /* Headings read as structure, not decoration. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-semibold tracking-tight text-balance;
+  }
+
+  /* Numbers in tables must not jitter as values change. */
+  table {
+    font-variant-numeric: tabular-nums;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  /* Data columns, currencies, counters, timers. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The one surface treatment used across the app: flat + hairline. */
+  .surface {
+    @apply bg-card border-border rounded-lg border;
+  }
+
+  .text-brand {
+    color: var(--brand-text);
+  }
+
+  /* Long text stays readable; we never run paragraphs edge to edge. */
+  .measure {
+    max-width: 68ch;
+  }
+}
+
+/* Scrollbars: present but quiet. */
+@supports (scrollbar-width: thin) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+}
+
+/* Honour the OS setting — motion is decoration here, never information. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -1,0 +1,761 @@
+// OpenHRM — Phase 1 data model
+//
+// Tenancy rule: every tenant-owned table carries `orgId` and indexes it first.
+// Uniqueness is always scoped by `orgId` so two organisations can both have an
+// "ENG" department or an employee coded "EMP-001". Application-level scoping is
+// enforced by the Prisma client extension in src/lib/db.ts; Postgres RLS in
+// prisma/migrations/*_rls is the second, independent safety net.
+//
+// Sensitive columns (bank account, PAN, Aadhaar) hold AES-256-GCM ciphertext
+// produced by src/lib/crypto.ts — never plaintext. They are suffixed `Enc`.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+enum EmployeeStatus {
+  INVITED
+  ACTIVE
+  ON_LEAVE
+  NOTICE_PERIOD
+  EXITED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+  CONSULTANT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNDISCLOSED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  ON_LEAVE
+  HOLIDAY
+  WEEKLY_OFF
+}
+
+enum AttendanceSource {
+  WEB
+  MOBILE
+  BIOMETRIC
+  IMPORT
+  SYSTEM
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum AccrualFrequency {
+  NONE
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+}
+
+enum HalfDaySession {
+  FIRST_HALF
+  SECOND_HALF
+}
+
+enum LeaveLedgerReason {
+  OPENING_BALANCE
+  ACCRUAL
+  CARRY_FORWARD
+  CONSUMED
+  REVERSED
+  ADJUSTMENT
+  ENCASHMENT
+  LAPSED
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  SELECT
+  BOOLEAN
+}
+
+enum NotificationType {
+  LEAVE_REQUESTED
+  LEAVE_APPROVED
+  LEAVE_REJECTED
+  LEAVE_CANCELLED
+  REGULARIZATION_REQUESTED
+  REGULARIZATION_APPROVED
+  REGULARIZATION_REJECTED
+  EMPLOYEE_JOINED
+  ANNOUNCEMENT
+  BIRTHDAY
+  WORK_ANNIVERSARY
+  INVITATION
+}
+
+enum AnnouncementAudience {
+  ALL
+  DEPARTMENT
+  LOCATION
+}
+
+// ---------------------------------------------------------------------------
+// Tenant root
+// ---------------------------------------------------------------------------
+
+model Organization {
+  id                   String   @id @default(cuid())
+  name                 String
+  slug                 String   @unique
+  logoUrl              String?
+  industry             String?
+  website              String?
+  country              String   @default("IN")
+  currency             String   @default("INR")
+  timezone             String   @default("Asia/Kolkata")
+  /// 1 = January. Drives leave-year boundaries and reporting periods.
+  fiscalYearStartMonth Int      @default(4)
+  /// ISO weekday numbers that count as working days (1 = Monday … 7 = Sunday).
+  workingDays          Int[]    @default([1, 2, 3, 4, 5])
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  users           User[]
+  employees       Employee[]
+  departments     Department[]
+  designations    Designation[]
+  locations       Location[]
+  roles           Role[]
+  invitations     Invitation[]
+  sessions        Session[]
+  customFields    CustomFieldDefinition[]
+  customValues    CustomFieldValue[]
+  shifts          Shift[]
+  attendance      AttendanceRecord[]
+  regularizations AttendanceRegularization[]
+  holidays        Holiday[]
+  leaveTypes      LeaveType[]
+  leaveBalances   LeaveBalance[]
+  leaveRequests   LeaveRequest[]
+  leaveLedger     LeaveLedgerEntry[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  announcements   Announcement[]
+
+  @@map("organizations")
+}
+
+// ---------------------------------------------------------------------------
+// Identity, access control
+// ---------------------------------------------------------------------------
+
+model User {
+  id              String     @id @default(cuid())
+  orgId           String
+  email           String
+  passwordHash    String
+  name            String
+  status          UserStatus @default(ACTIVE)
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  roleId          String
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  role     Role         @relation(fields: [roleId], references: [id])
+  employee Employee?
+
+  sessions        Session[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  invitationsSent Invitation[]       @relation("InvitedBy")
+  announcements   Announcement[]
+  ledgerEntries   LeaveLedgerEntry[] @relation("LedgerCreatedBy")
+
+  /// Scoped by org: the same person may hold accounts in two organisations on
+  /// the hosted platform. Login resolves email -> candidate orgs.
+  @@unique([orgId, email])
+  @@index([email])
+  @@index([orgId, roleId])
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  orgId       String
+  key         String
+  name        String
+  description String?
+  /// Permission keys from src/lib/permissions.ts. Stored as an array so admins
+  /// can compose custom roles ("Payroll-only HR", "Read-only Auditor") without
+  /// a schema change — the PRD's configurable permission matrix.
+  permissions String[]
+  /// System roles ship with every org and cannot be deleted.
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  users       User[]
+  invitations Invitation[]
+
+  @@unique([orgId, key])
+  @@index([orgId])
+  @@map("roles")
+}
+
+model Session {
+  id               String    @id @default(cuid())
+  orgId            String
+  userId           String
+  /// SHA-256 of the refresh token. The raw token never touches the database.
+  refreshTokenHash String    @unique
+  userAgent        String?
+  ipAddress        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([orgId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model Invitation {
+  id          String         @id @default(cuid())
+  orgId       String
+  email       String
+  name        String?
+  roleId      String
+  tokenHash   String         @unique
+  invitedById String?
+  status      ApprovalStatus @default(PENDING)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime       @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  role      Role         @relation(fields: [roleId], references: [id])
+  invitedBy User?        @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@index([orgId, email])
+  @@index([orgId, status])
+  @@map("invitations")
+}
+
+// ---------------------------------------------------------------------------
+// Organisation structure
+// ---------------------------------------------------------------------------
+
+model Department {
+  id       String  @id @default(cuid())
+  orgId    String
+  name     String
+  code     String
+  parentId String?
+  headId   String?
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  parent   Department?  @relation("DepartmentTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Department[] @relation("DepartmentTree")
+  head     Employee?    @relation("DepartmentHead", fields: [headId], references: [id], onDelete: SetNull)
+
+  employees     Employee[]
+  announcements Announcement[]
+
+  @@unique([orgId, code])
+  @@index([orgId])
+  @@index([parentId])
+  @@map("departments")
+}
+
+model Designation {
+  id    String @id @default(cuid())
+  orgId String
+  title String
+  /// Seniority rank used for org-chart ordering and reporting.
+  level Int    @default(0)
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employees Employee[]
+
+  @@unique([orgId, title])
+  @@index([orgId])
+  @@map("designations")
+}
+
+model Location {
+  id             String  @id @default(cuid())
+  orgId          String
+  name           String
+  addressLine1   String?
+  addressLine2   String?
+  city           String?
+  state          String?
+  country        String  @default("IN")
+  postalCode     String?
+  timezone       String  @default("Asia/Kolkata")
+  isHeadquarters Boolean @default(false)
+
+  org           Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employees     Employee[]
+  holidays      Holiday[]
+  announcements Announcement[]
+
+  @@unique([orgId, name])
+  @@index([orgId])
+  @@map("locations")
+}
+
+// ---------------------------------------------------------------------------
+// Core HR
+// ---------------------------------------------------------------------------
+
+model Employee {
+  id           String  @id @default(cuid())
+  orgId        String
+  employeeCode String
+  firstName    String
+  lastName     String
+  displayName  String?
+  avatarUrl    String?
+
+  workEmail     String
+  personalEmail String?
+  phone         String?
+  dateOfBirth   DateTime?
+  gender        Gender?
+  bloodGroup    String?
+  maritalStatus String?
+
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  country      String?
+  postalCode   String?
+
+  emergencyContactName     String?
+  emergencyContactPhone    String?
+  emergencyContactRelation String?
+
+  departmentId     String?
+  designationId    String?
+  locationId       String?
+  managerId        String?
+  shiftId          String?
+  employmentType   EmploymentType @default(FULL_TIME)
+  status           EmployeeStatus @default(ACTIVE)
+  dateOfJoining    DateTime
+  dateOfExit       DateTime?
+  probationEndDate DateTime?
+  noticePeriodDays Int            @default(30)
+
+  /// Visible only to roles holding `employee.compensation.read`.
+  ctcAnnual Decimal? @db.Decimal(14, 2)
+
+  // AES-256-GCM ciphertext — see src/lib/crypto.ts. Never log or export raw.
+  bankAccountNumberEnc String?
+  bankIfsc             String?
+  bankName             String?
+  panNumberEnc         String?
+  aadhaarNumberEnc     String?
+
+  userId    String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  department  Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  designation Designation? @relation(fields: [designationId], references: [id], onDelete: SetNull)
+  location    Location?    @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  shift       Shift?       @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  manager     Employee?    @relation("ReportingLine", fields: [managerId], references: [id], onDelete: SetNull)
+  reports     Employee[]   @relation("ReportingLine")
+
+  headsDepartments Department[]               @relation("DepartmentHead")
+  customValues     CustomFieldValue[]
+  attendance       AttendanceRecord[]
+  regularizations  AttendanceRegularization[] @relation("RegularizationOwner")
+  reviewedRegs     AttendanceRegularization[] @relation("RegularizationReviewer")
+  leaveBalances    LeaveBalance[]
+  leaveRequests    LeaveRequest[]             @relation("LeaveOwner")
+  approvedLeaves   LeaveRequest[]             @relation("LeaveApprover")
+  leaveLedger      LeaveLedgerEntry[]
+
+  @@unique([orgId, employeeCode])
+  @@unique([orgId, workEmail])
+  @@index([orgId, status])
+  @@index([orgId, departmentId])
+  @@index([orgId, managerId])
+  @@index([orgId, lastName, firstName])
+  @@map("employees")
+}
+
+model CustomFieldDefinition {
+  id       String          @id @default(cuid())
+  orgId    String
+  key      String
+  label    String
+  helpText String?
+  type     CustomFieldType @default(TEXT)
+  /// Choices when type = SELECT.
+  options  String[]        @default([])
+  section  String          @default("Additional")
+  required Boolean         @default(false)
+  sortdex  Int             @default(0)
+  isActive Boolean         @default(true)
+
+  org    Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  values CustomFieldValue[]
+
+  @@unique([orgId, key])
+  @@index([orgId])
+  @@map("custom_field_definitions")
+}
+
+model CustomFieldValue {
+  id           String  @id @default(cuid())
+  orgId        String
+  definitionId String
+  employeeId   String
+  value        String?
+
+  org        Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  definition CustomFieldDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  employee   Employee              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([definitionId, employeeId])
+  @@index([orgId, employeeId])
+  @@map("custom_field_values")
+}
+
+// ---------------------------------------------------------------------------
+// Attendance and time
+// ---------------------------------------------------------------------------
+
+model Shift {
+  id           String  @id @default(cuid())
+  orgId        String
+  name         String
+  /// "HH:mm" in the organisation's timezone.
+  startTime    String  @default("09:30")
+  endTime      String  @default("18:30")
+  breakMinutes Int     @default(60)
+  /// Late arrival tolerated before a day is flagged.
+  graceMinutes Int     @default(15)
+  halfDayHours Decimal @default(4) @db.Decimal(4, 2)
+  fullDayHours Decimal @default(8) @db.Decimal(4, 2)
+  isDefault    Boolean @default(false)
+
+  org        Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employees  Employee[]
+  attendance AttendanceRecord[]
+
+  @@unique([orgId, name])
+  @@index([orgId])
+  @@map("shifts")
+}
+
+model AttendanceRecord {
+  id            String           @id @default(cuid())
+  orgId         String
+  employeeId    String
+  /// Date-only — one row per employee per calendar day.
+  date          DateTime         @db.Date
+  checkInAt     DateTime?
+  checkOutAt    DateTime?
+  workedMinutes Int              @default(0)
+  status        AttendanceStatus @default(ABSENT)
+  shiftId       String?
+  source        AttendanceSource @default(WEB)
+  isLate        Boolean          @default(false)
+  isRegularized Boolean          @default(false)
+  note          String?
+  checkInLat    Float?
+  checkInLng    Float?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift    Shift?       @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  regularizations AttendanceRegularization[]
+
+  @@unique([employeeId, date])
+  @@index([orgId, date])
+  @@index([orgId, employeeId, date])
+  @@map("attendance_records")
+}
+
+model AttendanceRegularization {
+  id                  String         @id @default(cuid())
+  orgId               String
+  employeeId          String
+  attendanceRecordId  String?
+  date                DateTime       @db.Date
+  requestedCheckInAt  DateTime
+  requestedCheckOutAt DateTime
+  reason              String
+  status              ApprovalStatus @default(PENDING)
+  reviewerId          String?
+  reviewedAt          DateTime?
+  reviewNote          String?
+  createdAt           DateTime       @default(now())
+
+  org        Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee   Employee          @relation("RegularizationOwner", fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewer   Employee?         @relation("RegularizationReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  attendance AttendanceRecord? @relation(fields: [attendanceRecordId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, status])
+  @@index([orgId, employeeId])
+  @@map("attendance_regularizations")
+}
+
+model Holiday {
+  id         String   @id @default(cuid())
+  orgId      String
+  name       String
+  date       DateTime @db.Date
+  /// Null = applies to every location.
+  locationId String?
+  /// Restricted holidays: employees choose N from the optional pool.
+  isOptional Boolean  @default(false)
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  location Location?    @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, date])
+  @@map("holidays")
+}
+
+// ---------------------------------------------------------------------------
+// Leave
+// ---------------------------------------------------------------------------
+
+model LeaveType {
+  id                 String           @id @default(cuid())
+  orgId              String
+  name               String
+  code               String
+  description        String?
+  /// Chart/badge token name (chart-1 … chart-5) so colours stay themeable.
+  colorToken         String           @default("chart-1")
+  isPaid             Boolean          @default(true)
+  requiresApproval   Boolean          @default(true)
+  allowHalfDay       Boolean          @default(true)
+  /// Counts weekends/holidays inside the range as leave when true.
+  countsHolidays     Boolean          @default(false)
+  accrualFrequency   AccrualFrequency @default(MONTHLY)
+  accrualAmount      Decimal          @default(0) @db.Decimal(6, 2)
+  openingBalance     Decimal          @default(0) @db.Decimal(6, 2)
+  maxBalance         Decimal?         @db.Decimal(6, 2)
+  carryForward       Boolean          @default(false)
+  carryForwardCap    Decimal?         @db.Decimal(6, 2)
+  maxConsecutiveDays Int?
+  minNoticeDays      Int              @default(0)
+  /// Restrict to a gender (maternity/paternity). Null = everyone.
+  applicableGender   Gender?
+  isActive           Boolean          @default(true)
+  sortdex            Int              @default(0)
+
+  org      Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  balances LeaveBalance[]
+  requests LeaveRequest[]
+  ledger   LeaveLedgerEntry[]
+
+  @@unique([orgId, code])
+  @@index([orgId])
+  @@map("leave_types")
+}
+
+model LeaveBalance {
+  id             String  @id @default(cuid())
+  orgId          String
+  employeeId     String
+  leaveTypeId    String
+  /// Leave year, keyed by the org's fiscal year start.
+  year           Int
+  openingBalance Decimal @default(0) @db.Decimal(6, 2)
+  accrued        Decimal @default(0) @db.Decimal(6, 2)
+  carriedForward Decimal @default(0) @db.Decimal(6, 2)
+  adjusted       Decimal @default(0) @db.Decimal(6, 2)
+  used           Decimal @default(0) @db.Decimal(6, 2)
+  /// Reserved by requests awaiting approval, so balance can't be double-spent.
+  pending        Decimal @default(0) @db.Decimal(6, 2)
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee  Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType    @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, leaveTypeId, year])
+  @@index([orgId, year])
+  @@map("leave_balances")
+}
+
+/// Append-only history of every balance movement. The balance row is a
+/// materialised sum of these entries, so any number on screen can be explained.
+model LeaveLedgerEntry {
+  id             String            @id @default(cuid())
+  orgId          String
+  employeeId     String
+  leaveTypeId    String
+  year           Int
+  delta          Decimal           @db.Decimal(6, 2)
+  reason         LeaveLedgerReason
+  leaveRequestId String?
+  note           String?
+  createdById    String?
+  createdAt      DateTime          @default(now())
+
+  org          Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType    LeaveType     @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  leaveRequest LeaveRequest? @relation(fields: [leaveRequestId], references: [id], onDelete: SetNull)
+  createdBy    User?         @relation("LedgerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([orgId, employeeId, leaveTypeId, year])
+  @@map("leave_ledger_entries")
+}
+
+model LeaveRequest {
+  id                 String          @id @default(cuid())
+  orgId              String
+  employeeId         String
+  leaveTypeId        String
+  startDate          DateTime        @db.Date
+  endDate            DateTime        @db.Date
+  isHalfDay          Boolean         @default(false)
+  halfDaySession     HalfDaySession?
+  /// Working days consumed, computed server-side — 0.5 granularity.
+  days               Decimal         @db.Decimal(5, 2)
+  reason             String
+  status             ApprovalStatus  @default(PENDING)
+  approverId         String?
+  decidedAt          DateTime?
+  decisionNote       String?
+  cancelledAt        DateTime?
+  contactDuringLeave String?
+  documentUrl        String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employee  Employee     @relation("LeaveOwner", fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType    @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  approver  Employee?    @relation("LeaveApprover", fields: [approverId], references: [id], onDelete: SetNull)
+
+  ledgerEntries LeaveLedgerEntry[]
+
+  @@index([orgId, status])
+  @@index([orgId, employeeId])
+  @@index([orgId, startDate, endDate])
+  @@map("leave_requests")
+}
+
+// ---------------------------------------------------------------------------
+// Communication, audit
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id        String           @id @default(cuid())
+  orgId     String
+  userId    String
+  type      NotificationType
+  title     String
+  body      String?
+  linkUrl   String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([orgId, createdAt])
+  @@map("notifications")
+}
+
+model Announcement {
+  id           String               @id @default(cuid())
+  orgId        String
+  title        String
+  body         String
+  authorId     String?
+  audience     AnnouncementAudience @default(ALL)
+  departmentId String?
+  locationId   String?
+  isPinned     Boolean              @default(false)
+  publishedAt  DateTime             @default(now())
+  createdAt    DateTime             @default(now())
+
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  author     User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  department Department?  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  location   Location?    @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, publishedAt])
+  @@map("announcements")
+}
+
+/// Immutable record of sensitive actions. Written by src/lib/audit.ts; nothing
+/// in the application updates or deletes rows here.
+model AuditLog {
+  id          String   @id @default(cuid())
+  orgId       String
+  actorUserId String?
+  /// Denormalised so the log survives the actor being deleted.
+  actorLabel  String
+  action      String
+  entityType  String
+  entityId    String?
+  summary     String?
+  before      Json?
+  after       Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  actor User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
+  @@index([orgId, entityType, entityId])
+  @@map("audit_logs")
+}
