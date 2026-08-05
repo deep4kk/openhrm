@@ -8,11 +8,6 @@ const nextConfig: NextConfig = {
   // Self-hosters run this behind their own reverse proxy on a custom domain,
   // so a standalone output keeps the container small and dependency-free.
   output: process.env.BUILD_STANDALONE === "1" ? "standalone" : undefined,
-
-  eslint: {
-    // Lint is a separate CI step; a lint warning shouldn't block a deploy.
-    ignoreDuringBuilds: true,
-  },
 };
 
 export default nextConfig;

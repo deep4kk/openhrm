@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+.screenshots
+design-system
+.claude
+.agents
+.windsurf
+npm-debug.log*
+README.md
+prd.md
+*.md
+!prisma/**/*.md

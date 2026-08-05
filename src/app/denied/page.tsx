@@ -4,6 +4,7 @@ import { ShieldOff } from "lucide-react";
 
 import { getSession } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { LinkButton } from "@/components/link-button";
 
 export const metadata: Metadata = {
   title: "No access",
@@ -43,16 +44,13 @@ export default async function DeniedPage() {
       </p>
 
       <div className="mt-6 flex gap-2">
-        <Button
-          variant="outline"
-          render={<Link href={session ? "/dashboard" : "/login"} />}
-        >
+        <LinkButton variant="outline" href={session ? "/dashboard" : "/login"}>
           {session ? "Back to home" : "Sign in"}
-        </Button>
+        </LinkButton>
         {session && (
-          <Button variant="ghost" render={<Link href="/about#permissions" />}>
+          <LinkButton variant="ghost" href="/about#permissions">
             See what each role can do
-          </Button>
+          </LinkButton>
         )}
       </div>
     </main>

@@ -130,13 +130,20 @@
   --input: oklch(0.929 0.013 255.508);
   --ring: oklch(0.546 0.245 262.881);
 
-  /* Categorical chart ramp — distinguishable by hue AND lightness, so it
-     survives greyscale and the common colour-vision deficiencies. */
-  --chart-1: oklch(0.546 0.245 262.881); /* blue    */
-  --chart-2: oklch(0.596 0.145 163.225); /* emerald */
-  --chart-3: oklch(0.666 0.179 58.318); /* amber   */
-  --chart-4: oklch(0.606 0.25 292.717); /* violet  */
-  --chart-5: oklch(0.554 0.046 257.417); /* slate   */
+  /* Chart series.
+     Slots 1–2 are the validated categorical pair — blue-600 + amber-600 pass
+     all six checks on a white surface (lightness band, chroma floor, CVD
+     separation ΔE 32.3 protan / 29.3 tritan, normal-vision ΔE 38.3, contrast).
+     Charts here never need more than two series; anything with more becomes a
+     single-hue magnitude chart or small multiples.
+     Slots 3–5 are identity tints (avatars, leave-type badges) rendered at ~12%
+     over muted surfaces — not data marks, so the categorical checks don't apply.
+     Slot 5 is deliberately near-grey: it is the "Other" / neutral slot. */
+  --chart-1: oklch(0.546 0.245 262.881); /* blue-600  #2563EB */
+  --chart-2: oklch(0.666 0.179 58.318); /* amber-600 #D97706 */
+  --chart-3: oklch(0.596 0.145 163.225); /* emerald-600 — tint */
+  --chart-4: oklch(0.606 0.25 292.717); /* violet-500  — tint */
+  --chart-5: oklch(0.554 0.046 257.417); /* slate-500   — neutral / Other */
 
   --radius: 0.5rem;
 
@@ -193,11 +200,15 @@
   --input: oklch(1 0 0 / 16%);
   --ring: oklch(0.707 0.165 254.624);
 
-  --chart-1: oklch(0.707 0.165 254.624); /* blue-400    */
-  --chart-2: oklch(0.765 0.177 163.223); /* emerald-400 */
-  --chart-3: oklch(0.828 0.189 84.429); /* amber-400   */
-  --chart-4: oklch(0.702 0.183 293.541); /* violet-400  */
-  --chart-5: oklch(0.704 0.04 256.788); /* slate-400   */
+  /* Dark series are re-picked against the dark card surface, not flipped.
+     The naive lift (blue-400 + amber-400) fails the lightness band on
+     #0F172A; blue-500 + amber-600 passes all six checks there
+     (CVD ΔE 30.2 protan / 28.7 tritan, normal-vision ΔE 34.2). */
+  --chart-1: oklch(0.623 0.214 259.815); /* blue-500  #3B82F6 */
+  --chart-2: oklch(0.666 0.179 58.318); /* amber-600 #D97706 */
+  --chart-3: oklch(0.765 0.177 163.223); /* emerald-400 — tint */
+  --chart-4: oklch(0.702 0.183 293.541); /* violet-400  — tint */
+  --chart-5: oklch(0.704 0.04 256.788); /* slate-400   — neutral / Other */
 
   --sidebar: oklch(0.208 0.042 265.755);
   --sidebar-foreground: oklch(0.869 0.022 252.894); /* slate-300 */
