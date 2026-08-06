@@ -10,6 +10,7 @@ import { audit } from "../audit";
 import { encryptField, generateToken, hashToken } from "../crypto";
 import { canReachEmployee } from "../scope";
 import { sendInvitationEmail } from "../mail";
+import { fieldErrorsFrom } from "./form";
 import type { FormState } from "./auth";
 
 /**
@@ -427,13 +428,4 @@ export async function deleteEmployeeAction(employeeId: string): Promise<FormStat
   // the actor label and summary onto it.
   revalidatePath("/people");
   redirect("/people");
-}
-
-function fieldErrorsFrom(error: z.ZodError): Record<string, string> {
-  const output: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const key = issue.path[0];
-    if (typeof key === "string" && !output[key]) output[key] = issue.message;
-  }
-  return output;
 }

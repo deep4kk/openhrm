@@ -16,7 +16,9 @@ This repository is **Phase 1** of [the roadmap](prd.md#14-release-roadmap-phased
 |---|---|
 | Accounts, organisations, invitations | ✅ Built |
 | Roles & granular permissions | ✅ Built |
+| Organisation setup — structure, locations, shifts, holidays, leave types | ✅ Built |
 | Employee database (Core HR) | ✅ Built |
+| Org chart from reporting lines | ✅ Built |
 | Attendance & regularisation | ✅ Built |
 | Leave — accrual, balances, approvals | ✅ Built |
 | Employee self-service | ✅ Built |
@@ -51,21 +53,63 @@ npm run dev
 
 Open <http://localhost:3000>.
 
+---
+
+## Demo login details
+
 `npm run db:seed` creates **Meridian Labs** — 31 employees, two months of
 attendance, real reporting lines and pending approvals — plus one account per
-role so you can see the product from each angle:
+role, so you can see the product from each angle.
 
-| Email | Role | Sees |
+### 🔑 Password for every demo account
+
+```
+openhrm-demo-2026
+```
+
+All lowercase, two hyphens. The same password works for all four accounts below.
+
+### Accounts
+
+| # | Email | Password | Role | Signs in as | What they can see |
+|---|---|---|---|---|---|
+| 1 | `admin@meridianlabs.example` | `openhrm-demo-2026` | **Org Admin** | Deepak Sharma | Everything — all 8 nav sections, settings, roles, every employee |
+| 2 | `hr@meridianlabs.example` | `openhrm-demo-2026` | **HR Manager** | Ananya Iyer | All 31 employees, org-wide leave and attendance. No role management |
+| 3 | `manager@meridianlabs.example` | `openhrm-demo-2026` | **Manager** | Arjun Reddy | Only his 4 direct reports, and only their approvals |
+| 4 | `employee@meridianlabs.example` | `openhrm-demo-2026` | **Employee** | Aditya Verma | Only himself — the sidebar shrinks to 4 items |
+
+**Start with account 1.** Then sign out and try 3, then 4. That sequence is the
+fastest way to see the permission model doing real work: the sidebar, the
+tables and the approval queue all change, and it is enforced on the server —
+typing `/settings` as the employee lands on `/denied`, not a blank page.
+
+> The `.example` domain is reserved by [RFC 2606](https://www.rfc-editor.org/rfc/rfc2606)
+> for exactly this purpose, so these addresses can never collide with a real
+> mailbox or accidentally send someone an email.
+
+### If sign-in fails
+
+| What you see | What it means | Fix |
 |---|---|---|
-| `admin@meridianlabs.example` | Org Admin | Everything |
-| `hr@meridianlabs.example` | HR Manager | Everyone, minus role management |
-| `manager@meridianlabs.example` | Manager | Their reporting line only |
-| `employee@meridianlabs.example` | Employee | Themselves only |
+| "That email and password don't match an account" | The demo data isn't loaded | `npm run db:seed` |
+| A database connection error | `npm run db:dev` isn't running, or its port changed | Restart it and copy the printed `DATABASE_URL` into `.env` |
+| "Too many failed attempts" | 8 wrong tries in 10 minutes | Wait 10 minutes, or restart `npm run dev` to clear it |
 
-Password for all four: `openhrm-demo-2026`
+`npm run db:seed` is safe to re-run at any time — it deletes the demo
+organisation and rebuilds it, so it never duplicates data. Re-running it also
+refreshes attendance so that "today" has records.
 
-Signing in as the manager and then the employee is the quickest way to see the
-permission model working — the sidebar, the tables and the approvals all change.
+> [!IMPORTANT]
+> **These credentials are published, on purpose.** Meridian Labs is invented
+> data and the logins above are printed in this README so anyone can open the
+> demo and look around without signing up. If a public OpenHRM demo is running,
+> assume it is seeded exactly like this and that anyone can sign into it.
+>
+> **That is the opposite of what you want for real HR data.** If you are
+> self-hosting OpenHRM for an actual organisation, skip `npm run db:seed`
+> entirely and create your organisation through the sign-up page — or delete the
+> demo organisation afterwards. Never run a real deployment with the seeded
+> accounts present.
 
 ---
 

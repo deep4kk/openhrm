@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus, Users } from "lucide-react";
+import { Network, Plus, Users } from "lucide-react";
 
 import { requirePermission, can } from "@/lib/auth";
 import { listEmployees, getOrgOptions } from "@/lib/queries/employees";
@@ -59,12 +59,18 @@ export default async function PeoplePage({
             : "Everyone on the team, with their role and reporting line."
         }
         actions={
-          canAdd && (
-            <LinkButton href="/people/new">
-              <Plus className="size-4" aria-hidden="true" />
-              Add employee
+          <>
+            <LinkButton href="/people/org-chart" variant="outline">
+              <Network className="size-4" aria-hidden="true" />
+              Org chart
             </LinkButton>
-          )
+            {canAdd && (
+              <LinkButton href="/people/new">
+                <Plus className="size-4" aria-hidden="true" />
+                Add employee
+              </LinkButton>
+            )}
+          </>
         }
       />
 

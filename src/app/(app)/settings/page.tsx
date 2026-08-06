@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import {
+  Award,
   Building2,
   CalendarOff,
   Clock,
@@ -12,9 +13,11 @@ import {
 import { requirePermission, can } from "@/lib/auth";
 import { orgDb } from "@/lib/db";
 import { formatDate } from "@/lib/dates";
+import { MONTHS, WEEKDAYS } from "@/lib/locale";
 import { PageHeader, PageShell } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { LinkButton } from "@/components/link-button";
+import { Field, ManageLink, Panel } from "@/components/settings/panel";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -23,7 +26,9 @@ export const metadata: Metadata = { title: "Settings" };
  *
  * A read-first view: what is configured right now, in one place, so an admin
  * can answer "what are our leave rules?" without clicking through six screens.
- * Editing lives behind the individual sections.
+ * Editing lives behind the individual sections — and each "Manage" link appears
+ * only when the viewer holds the permission that section requires, so the
+ * overview never offers a door that opens onto /denied.
  */
 export default async function SettingsPage() {
   const session = await requirePermission(
@@ -66,11 +71,7 @@ export default async function SettingsPage() {
     userCounts.map((row) => [row.roleId, row._count._all]),
   );
 
-  const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const MONTHS = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-  ];
+  const mayManageStructure = can(session, "structure.manage");
 
   return (
     <PageShell className="max-w-5xl">
@@ -79,7 +80,15 @@ export default async function SettingsPage() {
         description="How this organisation is configured. Everything here shapes what the rest of the app calculates."
       />
 
-      <Panel icon={Building2} title="Organisation">
+      <Panel
+        icon={Building2}
+        title="Organisation"
+        action={
+          can(session, "org.update") && (
+            <ManageLink href="/settings/organisation" label="Edit profile" />
+          )
+        }
+      >
         <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-3">
           <Field label="Name" value={org?.name} />
           <Field label="Identifier" value={org?.slug} mono />
@@ -89,12 +98,13 @@ export default async function SettingsPage() {
           <Field label="Timezone" value={org?.timezone} />
           <Field
             label="Leave year starts"
-            value={MONTHS[(org?.fiscalYearStartMonth ?? 1) - 1]}
+            value={MONTHS[(org?.fiscalYearStartMonth ?? 1) - 1]?.label}
           />
           <Field
             label="Working days"
             value={(org?.workingDays ?? [])
-              .map((d) => WEEKDAYS[d - 1])
+              .map((d) => WEEKDAYS.find((w) => w.value === d)?.short)
+              .filter(Boolean)
               .join(", ")}
           />
           <Field
@@ -109,6 +119,11 @@ export default async function SettingsPage() {
           icon={Network}
           title="Departments"
           count={departments.length}
+          action={
+            mayManageStructure && (
+              <ManageLink href="/settings/structure" label="Manage" />
+            )
+          }
         >
           <ul className="flex flex-wrap gap-2">
             {departments.map((d) => (
@@ -125,9 +140,14 @@ export default async function SettingsPage() {
         </Panel>
 
         <Panel
-          icon={Network}
+          icon={Award}
           title="Designations"
           count={designations.length}
+          action={
+            mayManageStructure && (
+              <ManageLink href="/settings/structure" label="Manage" />
+            )
+          }
         >
           <ul className="flex flex-wrap gap-2">
             {designations.map((d) => (
@@ -140,7 +160,16 @@ export default async function SettingsPage() {
           </ul>
         </Panel>
 
-        <Panel icon={MapPin} title="Locations" count={locations.length}>
+        <Panel
+          icon={MapPin}
+          title="Locations"
+          count={locations.length}
+          action={
+            mayManageStructure && (
+              <ManageLink href="/settings/locations" label="Manage" />
+            )
+          }
+        >
           <ul className="space-y-2.5">
             {locations.map((l) => (
               <li key={l.id} className="flex items-center justify-between gap-3">
@@ -152,15 +181,22 @@ export default async function SettingsPage() {
                     {l.timezone}
                   </p>
                 </div>
-                {l.isHeadquarters && (
-                  <StatusBadge label="HQ" tone="info" />
-                )}
+                {l.isHeadquarters && <StatusBadge label="HQ" tone="info" />}
               </li>
             ))}
           </ul>
         </Panel>
 
-        <Panel icon={Clock} title="Shifts" count={shifts.length}>
+        <Panel
+          icon={Clock}
+          title="Shifts"
+          count={shifts.length}
+          action={
+            can(session, "shift.manage") && (
+              <ManageLink href="/settings/shifts" label="Manage" />
+            )
+          }
+        >
           <ul className="space-y-2.5">
             {shifts.map((s) => (
               <li key={s.id} className="flex items-center justify-between gap-3">
@@ -183,6 +219,11 @@ export default async function SettingsPage() {
         title="Leave types"
         count={leaveTypes.length}
         description="These rules drive every balance in the system."
+        action={
+          can(session, "leave.type.manage") && (
+            <ManageLink href="/settings/leave-types" label="Manage" />
+          )
+        }
       >
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
@@ -207,6 +248,13 @@ export default async function SettingsPage() {
                       <span className="text-muted-foreground ml-2 text-xs">
                         ({type.applicableGender.toLowerCase()} only)
                       </span>
+                    )}
+                    {!type.isActive && (
+                      <StatusBadge
+                        label="Inactive"
+                        tone="warning"
+                        className="ml-2"
+                      />
                     )}
                   </td>
                   <td className="text-muted-foreground px-3 py-2.5 tabular-nums">
@@ -241,7 +289,15 @@ export default async function SettingsPage() {
       </Panel>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Panel icon={CalendarOff} title="Upcoming holidays">
+        <Panel
+          icon={CalendarOff}
+          title="Upcoming holidays"
+          action={
+            can(session, "holiday.manage") && (
+              <ManageLink href="/settings/holidays" label="Manage" />
+            )
+          }
+        >
           {holidays.length === 0 ? (
             <p className="text-muted-foreground text-sm">
               No holidays scheduled for the rest of the year.
@@ -249,7 +305,10 @@ export default async function SettingsPage() {
           ) : (
             <ul className="space-y-2.5">
               {holidays.map((h) => (
-                <li key={h.id} className="flex items-center justify-between gap-3">
+                <li
+                  key={h.id}
+                  className="flex items-center justify-between gap-3"
+                >
                   <span className="text-sm">{h.name}</span>
                   <span className="text-muted-foreground flex items-center gap-2 text-xs tabular-nums">
                     {h.isOptional && (
@@ -271,7 +330,10 @@ export default async function SettingsPage() {
         >
           <ul className="space-y-2.5">
             {roles.map((role) => (
-              <li key={role.id} className="flex items-center justify-between gap-3">
+              <li
+                key={role.id}
+                className="flex items-center justify-between gap-3"
+              >
                 <div>
                   <p className="text-sm">{role.name}</p>
                   <p className="text-muted-foreground text-xs tabular-nums">
@@ -280,7 +342,9 @@ export default async function SettingsPage() {
                     {(usersByRole.get(role.id) ?? 0) === 1 ? "" : "s"}
                   </p>
                 </div>
-                {role.isSystem && <StatusBadge label="Built in" tone="neutral" />}
+                {role.isSystem && (
+                  <StatusBadge label="Built in" tone="neutral" />
+                )}
               </li>
             ))}
           </ul>
@@ -295,60 +359,5 @@ export default async function SettingsPage() {
         </Panel>
       </div>
     </PageShell>
-  );
-}
-
-function Panel({
-  icon: Icon,
-  title,
-  count,
-  description,
-  children,
-}: {
-  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-  title: string;
-  count?: number;
-  description?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="surface p-5">
-      <div className="mb-4 flex items-start gap-2.5">
-        <Icon className="text-muted-foreground mt-0.5 size-4" aria-hidden />
-        <div>
-          <h2 className="text-sm font-semibold">
-            {title}
-            {count !== undefined && (
-              <span className="text-muted-foreground ml-2 font-normal tabular-nums">
-                {count}
-              </span>
-            )}
-          </h2>
-          {description && (
-            <p className="text-muted-foreground mt-0.5 text-xs">{description}</p>
-          )}
-        </div>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Field({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value?: string | null;
-  mono?: boolean;
-}) {
-  return (
-    <div>
-      <dt className="text-muted-foreground text-xs">{label}</dt>
-      <dd className={`mt-1 text-sm ${mono ? "font-mono text-xs" : ""}`}>
-        {value || "—"}
-      </dd>
-    </div>
   );
 }
