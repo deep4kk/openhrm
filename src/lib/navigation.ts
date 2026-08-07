@@ -17,7 +17,18 @@ export type NavIcon =
   | "calendar"
   | "chart"
   | "settings"
-  | "help";
+  | "help"
+  | "wallet"
+  | "clipboard"
+  | "files"
+  | "laptop"
+  | "receipt"
+  | "lifebuoy"
+  | "briefcase"
+  | "target"
+  | "graduation"
+  | "megaphone"
+  | "doorOpen";
 
 /**
  * Navigation is derived from permissions, not from role names.
@@ -75,10 +86,97 @@ export const NAV_SECTIONS: NavSection[] = [
         anyOf: ["leave.read.all", "leave.read.team", "leave.approve.team"],
       },
       {
+        title: "Payroll",
+        href: "/payroll",
+        icon: "wallet",
+        anyOf: ["payroll.read.all", "payroll.run", "payroll.structure.manage"],
+      },
+      {
         title: "Reports",
         href: "/reports",
         icon: "chart",
         anyOf: ["report.read.org", "report.read.team"],
+      },
+    ],
+  },
+  {
+    label: "Workplace",
+    items: [
+      {
+        title: "Onboarding",
+        href: "/journeys",
+        icon: "clipboard",
+        anyOf: ["journey.read.all", "journey.manage"],
+      },
+      {
+        title: "Documents",
+        href: "/documents",
+        icon: "files",
+        anyOf: ["document.read.all", "document.manage", "policy.manage"],
+      },
+      {
+        title: "Assets",
+        href: "/assets",
+        icon: "laptop",
+        anyOf: ["asset.read.all", "asset.manage"],
+      },
+      {
+        title: "Expenses",
+        href: "/expenses",
+        icon: "receipt",
+        anyOf: [
+          "expense.read.all",
+          "expense.read.team",
+          "expense.approve.team",
+          "expense.approve.all",
+        ],
+      },
+      {
+        title: "Helpdesk",
+        href: "/helpdesk",
+        icon: "lifebuoy",
+        anyOf: ["ticket.read.all", "ticket.manage"],
+      },
+      {
+        title: "Exits",
+        href: "/exits",
+        icon: "doorOpen",
+        anyOf: ["exit.read.all", "exit.manage", "settlement.manage"],
+      },
+    ],
+  },
+  {
+    label: "Talent",
+    items: [
+      {
+        title: "Hiring",
+        href: "/hiring",
+        icon: "briefcase",
+        anyOf: ["job.read", "job.manage", "candidate.read"],
+      },
+      {
+        title: "Performance",
+        href: "/performance",
+        icon: "target",
+        anyOf: [
+          "goal.read.all",
+          "goal.read.team",
+          "goal.manage",
+          "review.cycle.manage",
+          "review.read.team",
+        ],
+      },
+      {
+        title: "Learning",
+        href: "/learning",
+        icon: "graduation",
+        anyOf: ["course.manage", "enrollment.manage", "enrollment.read.all"],
+      },
+      {
+        title: "Engagement",
+        href: "/engagement",
+        icon: "megaphone",
+        anyOf: ["announcement.manage", "survey.manage"],
       },
     ],
   },
@@ -95,6 +193,9 @@ export const NAV_SECTIONS: NavSection[] = [
           "structure.manage",
           "role.manage",
           "leave.type.manage",
+          "branding.manage",
+          "apikey.manage",
+          "webhook.manage",
         ],
       },
       { title: "About", href: "/about", icon: "help" },

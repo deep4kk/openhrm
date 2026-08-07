@@ -5,6 +5,8 @@ import { ChevronLeft, Mail, Pencil, Phone } from "lucide-react";
 
 import { requirePermission, can } from "@/lib/auth";
 import { getEmployee } from "@/lib/queries/employees";
+import { getSalaryHistory, listSalaryStructures } from "@/lib/queries/payroll";
+import { CompensationPanel } from "@/components/payroll/compensation-panel";
 import { canReachEmployee } from "@/lib/scope";
 import { maskTail, decryptFieldSafe } from "@/lib/crypto";
 import { formatDate } from "@/lib/dates";
@@ -63,6 +65,15 @@ export default async function EmployeeProfilePage({
   const showCompensation =
     can(session, "employee.compensation.read") && inFullScope;
   const showSensitive = can(session, "employee.sensitive.read") && inFullScope;
+
+  // Only fetched when it will be rendered — salary history is exactly the kind
+  // of data that should not be read "just in case".
+  const [salaryHistory, structures] = showCompensation
+    ? await Promise.all([
+        getSalaryHistory(session, id),
+        listSalaryStructures(session),
+      ])
+    : [[], []];
 
   const fullName = `${employee.firstName} ${employee.lastName}`.trim();
 
@@ -207,30 +218,24 @@ export default async function EmployeeProfilePage({
 
             {showCompensation && (
               <Panel title="Compensation">
-                <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
-                  <Field
-                    label="Annual CTC"
-                    value={
-                      employee.ctcAnnual
-                        ? formatMoney(
-                            Number(employee.ctcAnnual),
-                            session.org.currency,
-                          )
-                        : undefined
-                    }
-                  />
-                  <Field
-                    label="Monthly (gross)"
-                    value={
-                      employee.ctcAnnual
-                        ? formatMoney(
-                            Number(employee.ctcAnnual) / 12,
-                            session.org.currency,
-                          )
-                        : undefined
-                    }
-                  />
-                </dl>
+                <CompensationPanel
+                  employeeId={employee.id}
+                  currency={session.org.currency}
+                  canEdit={can(session, "payroll.compensation.manage")}
+                  structures={structures.map((structure) => ({
+                    value: structure.id,
+                    label: structure.name,
+                  }))}
+                  history={salaryHistory.map((row) => ({
+                    id: row.id,
+                    annualCtc: Number(row.annualCtc),
+                    structureName: row.structure.name,
+                    effectiveFrom: formatDate(row.effectiveFrom),
+                    effectiveTo: row.effectiveTo ? formatDate(row.effectiveTo) : null,
+                    note: row.note,
+                    createdBy: row.createdBy?.name ?? null,
+                  }))}
+                />
               </Panel>
             )}
 

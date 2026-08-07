@@ -69,7 +69,122 @@ export type AuditAction =
   | "leave.cancelled"
   | "leave.balance.adjusted"
   | "announcement.published"
-  | "data.exported";
+  | "data.exported"
+
+  // Payroll
+  | "payroll.structure.created"
+  | "payroll.structure.updated"
+  | "payroll.structure.deleted"
+  | "payroll.component.created"
+  | "payroll.component.updated"
+  | "payroll.component.deleted"
+  | "payroll.statutory.updated"
+  | "payroll.salary.assigned"
+  | "payroll.run.created"
+  | "payroll.run.calculated"
+  | "payroll.run.approved"
+  | "payroll.run.paid"
+  | "payroll.run.cancelled"
+  | "payroll.payslips.published"
+  | "loan.created"
+  | "loan.cancelled"
+
+  // Onboarding & offboarding
+  | "journey.started"
+  | "journey.task.updated"
+  | "journey.cancelled"
+  | "journey.template.saved"
+  | "journey.template.deleted"
+
+  // Documents
+  | "document.uploaded"
+  | "document.deleted"
+  | "document.viewed"
+  | "policy.published"
+  | "policy.updated"
+  | "policy.archived"
+  | "policy.acknowledged"
+  | "letter.template.saved"
+  | "letter.template.deleted"
+  | "letter.generated"
+  | "letter.signed"
+
+  // Assets
+  | "asset.created"
+  | "asset.updated"
+  | "asset.deleted"
+  | "asset.issued"
+  | "asset.returned"
+
+  // Expenses
+  | "expense.category.saved"
+  | "expense.category.deleted"
+  | "expense.submitted"
+  | "expense.decided"
+  | "expense.reimbursed"
+
+  // Helpdesk
+  | "ticket.raised"
+  | "ticket.updated"
+  | "ticket.commented"
+  | "ticket.category.saved"
+  | "ticket.category.deleted"
+
+  // Recruitment
+  | "job.created"
+  | "job.updated"
+  | "job.deleted"
+  | "candidate.created"
+  | "candidate.moved"
+  | "candidate.updated"
+  | "interview.scheduled"
+  | "interview.feedback.submitted"
+  | "offer.created"
+  | "offer.sent"
+  | "offer.decided"
+  | "offer.converted"
+
+  // Performance
+  | "goal.created"
+  | "goal.updated"
+  | "goal.deleted"
+  | "review.cycle.created"
+  | "review.cycle.advanced"
+  | "review.submitted"
+  | "oneonone.saved"
+
+  // Learning
+  | "course.saved"
+  | "course.published"
+  | "course.deleted"
+  | "course.assigned"
+  | "course.completed"
+
+  // Engagement
+  | "survey.created"
+  | "survey.opened"
+  | "survey.closed"
+  | "survey.responded"
+
+  // Exit
+  | "exit.requested"
+  | "exit.decided"
+  | "exit.withdrawn"
+  | "exit.interview.submitted"
+  | "settlement.computed"
+  | "settlement.approved"
+  | "settlement.paid"
+
+  // Platform
+  | "apikey.created"
+  | "apikey.revoked"
+  | "webhook.created"
+  | "webhook.updated"
+  | "webhook.deleted"
+  | "report.saved"
+  | "report.deleted"
+  | "branding.updated"
+  | "integration.updated";
 
 interface AuditInput {
   action: AuditAction;

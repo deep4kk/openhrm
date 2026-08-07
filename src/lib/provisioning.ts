@@ -3,6 +3,7 @@ import "server-only";
 import { rawDb } from "./db";
 import { hashPassword } from "./auth";
 import { SYSTEM_ROLES } from "./permissions";
+import { provisionModuleDefaults } from "./module-defaults";
 
 /**
  * Creating an organisation.
@@ -120,7 +121,7 @@ export async function createOrganization(input: CreateOrganizationInput) {
       },
     });
 
-    // The four roles from PRD §6. They are ordinary rows — an Org Admin can
+    // The system roles from PRD §6. They are ordinary rows — an Org Admin can
     // edit the non-admin ones or add new roles beside them.
     await tx.role.createMany({
       data: SYSTEM_ROLES.map((role) => ({
@@ -185,6 +186,11 @@ export async function createOrganization(input: CreateOrganizationInput) {
         sortdex: type.sortdex,
       })),
     });
+
+    // Payroll structures, checklist templates, expense and ticket queues,
+    // letter templates and the statutory pack — so every module opens onto
+    // something workable rather than an empty list.
+    await provisionModuleDefaults(tx, org.id);
 
     const user = await tx.user.create({
       data: {

@@ -16,7 +16,19 @@ export const PERMISSION_GROUPS = [
   "People",
   "Attendance",
   "Leave",
+  "Payroll",
+  "Onboarding",
+  "Documents",
+  "Assets",
+  "Expenses",
+  "Helpdesk",
+  "Recruitment",
+  "Performance",
+  "Learning",
+  "Engagement",
+  "Exit",
   "Insights",
+  "Platform",
 ] as const;
 
 export type PermissionGroup = (typeof PERMISSION_GROUPS)[number];
@@ -280,10 +292,453 @@ export const PERMISSIONS = [
     description: "Headcount, attrition, diversity and leave trends org-wide.",
   },
   {
+    key: "report.build",
+    label: "Build custom reports",
+    group: "Insights",
+    description:
+      "Compose, save and share reports from the datasets you already have access to.",
+  },
+
+  // --- Payroll ------------------------------------------------------------
+  {
+    key: "payroll.read.self",
+    label: "View own payslips",
+    group: "Payroll",
+    description: "Download one's own payslips and salary history.",
+  },
+  {
+    key: "payroll.read.all",
+    label: "View all payroll",
+    group: "Payroll",
+    description: "See payroll runs and every employee's payslip.",
+    sensitive: true,
+  },
+  {
+    key: "payroll.run",
+    label: "Run payroll",
+    group: "Payroll",
+    description: "Create a monthly run, calculate it, and revise it while in draft.",
+    sensitive: true,
+  },
+  {
+    key: "payroll.approve",
+    label: "Approve & release payroll",
+    group: "Payroll",
+    description:
+      "Lock a run, publish payslips to employees and mark it paid. Separate from running it so one person can't do both.",
+    sensitive: true,
+  },
+  {
+    key: "payroll.structure.manage",
+    label: "Manage salary structures",
+    group: "Payroll",
+    description: "Define salary components and the structures that combine them.",
+    sensitive: true,
+  },
+  {
+    key: "payroll.statutory.manage",
+    label: "Manage statutory rules",
+    group: "Payroll",
+    description:
+      "Configure the compliance pack — PF, ESI, professional tax and TDS rates.",
+    sensitive: true,
+  },
+  {
+    key: "payroll.compensation.manage",
+    label: "Set compensation",
+    group: "Payroll",
+    description: "Assign salary structures and record raises. Always audited.",
+    sensitive: true,
+  },
+  {
+    key: "loan.manage",
+    label: "Manage loans & advances",
+    group: "Payroll",
+    description: "Issue salary advances and set their recovery schedule.",
+    sensitive: true,
+  },
+
+  // --- Onboarding ---------------------------------------------------------
+  {
+    key: "journey.read.self",
+    label: "See own journey",
+    group: "Onboarding",
+    description: "Follow one's own onboarding or exit checklist.",
+  },
+  {
+    key: "journey.read.all",
+    label: "See all journeys",
+    group: "Onboarding",
+    description: "Track every onboarding and offboarding in progress.",
+  },
+  {
+    key: "journey.manage",
+    label: "Manage journeys",
+    group: "Onboarding",
+    description: "Start, edit and cancel onboarding and offboarding checklists.",
+  },
+  {
+    key: "journey.template.manage",
+    label: "Manage checklist templates",
+    group: "Onboarding",
+    description: "Define the tasks, owners and timings a new joiner runs through.",
+  },
+  {
+    key: "task.complete",
+    label: "Complete assigned tasks",
+    group: "Onboarding",
+    description: "Tick off checklist tasks assigned to you.",
+  },
+
+  // --- Documents ----------------------------------------------------------
+  {
+    key: "document.read.self",
+    label: "View own documents",
+    group: "Documents",
+    description: "Open one's own contracts, certificates and ID proofs.",
+  },
+  {
+    key: "document.read.team",
+    label: "View team documents",
+    group: "Documents",
+    description: "Open documents for direct and indirect reports.",
+  },
+  {
+    key: "document.read.all",
+    label: "View all documents",
+    group: "Documents",
+    description: "Open any employee's document vault.",
+    sensitive: true,
+  },
+  {
+    key: "document.manage",
+    label: "Manage documents",
+    group: "Documents",
+    description: "Upload, replace and delete employee documents.",
+  },
+  {
+    key: "policy.read",
+    label: "Read policies",
+    group: "Documents",
+    description: "Read published company policies and acknowledge them.",
+  },
+  {
+    key: "policy.manage",
+    label: "Manage policies",
+    group: "Documents",
+    description:
+      "Write, publish and version policies, and see who has acknowledged them.",
+  },
+  {
+    key: "letter.manage",
+    label: "Issue letters",
+    group: "Documents",
+    description:
+      "Generate offer, experience, relieving and increment letters from templates.",
+  },
+
+  // --- Assets -------------------------------------------------------------
+  {
+    key: "asset.read.self",
+    label: "View own assets",
+    group: "Assets",
+    description: "See what company equipment is issued to you.",
+  },
+  {
+    key: "asset.read.all",
+    label: "View asset register",
+    group: "Assets",
+    description: "See every asset and who holds it.",
+  },
+  {
+    key: "asset.manage",
+    label: "Manage assets",
+    group: "Assets",
+    description: "Add assets, issue them to employees and record returns.",
+  },
+
+  // --- Expenses -----------------------------------------------------------
+  {
+    key: "expense.submit",
+    label: "Claim expenses",
+    group: "Expenses",
+    description: "Submit expense claims with receipts.",
+  },
+  {
+    key: "expense.read.self",
+    label: "View own claims",
+    group: "Expenses",
+    description: "Track one's own claims and reimbursements.",
+  },
+  {
+    key: "expense.read.team",
+    label: "View team claims",
+    group: "Expenses",
+    description: "See claims from direct and indirect reports.",
+  },
+  {
+    key: "expense.read.all",
+    label: "View all claims",
+    group: "Expenses",
+    description: "See expense claims across the organisation.",
+  },
+  {
+    key: "expense.approve.team",
+    label: "Approve team claims",
+    group: "Expenses",
+    description: "Decide expense claims from one's reports.",
+  },
+  {
+    key: "expense.approve.all",
+    label: "Approve any claim",
+    group: "Expenses",
+    description: "Decide any expense claim, overriding the reporting manager.",
+  },
+  {
+    key: "expense.reimburse",
+    label: "Reimburse claims",
+    group: "Expenses",
+    description:
+      "Mark approved claims paid, or attach them to the next payroll run.",
+    sensitive: true,
+  },
+  {
+    key: "expense.category.manage",
+    label: "Manage expense categories",
+    group: "Expenses",
+    description: "Define categories, per-claim caps and receipt requirements.",
+  },
+
+  // --- Helpdesk -----------------------------------------------------------
+  {
+    key: "ticket.raise",
+    label: "Raise tickets",
+    group: "Helpdesk",
+    description: "Ask HR a question and follow the answer.",
+  },
+  {
+    key: "ticket.read.all",
+    label: "View all tickets",
+    group: "Helpdesk",
+    description: "See every ticket raised in the organisation.",
+  },
+  {
+    key: "ticket.manage",
+    label: "Work the queue",
+    group: "Helpdesk",
+    description: "Assign, reply to, resolve and close tickets.",
+  },
+  {
+    key: "ticket.category.manage",
+    label: "Manage ticket queues",
+    group: "Helpdesk",
+    description: "Define categories, SLA targets and default owners.",
+  },
+
+  // --- Recruitment --------------------------------------------------------
+  {
+    key: "job.read",
+    label: "View job openings",
+    group: "Recruitment",
+    description: "See open roles and their pipelines.",
+  },
+  {
+    key: "job.manage",
+    label: "Manage job openings",
+    group: "Recruitment",
+    description: "Create, publish and close job postings.",
+  },
+  {
+    key: "candidate.read",
+    label: "View candidates",
+    group: "Recruitment",
+    description: "See applicants, resumes and pipeline stage.",
+  },
+  {
+    key: "candidate.manage",
+    label: "Manage candidates",
+    group: "Recruitment",
+    description: "Move candidates through the pipeline, rate and reject them.",
+  },
+  {
+    key: "interview.manage",
+    label: "Schedule interviews",
+    group: "Recruitment",
+    description: "Book interviews and assign interviewers.",
+  },
+  {
+    key: "interview.feedback",
+    label: "Submit interview feedback",
+    group: "Recruitment",
+    description: "Fill in the scorecard for interviews you are on.",
+  },
+  {
+    key: "offer.manage",
+    label: "Manage offers",
+    group: "Recruitment",
+    description: "Draft, send and withdraw offers, and convert a hire to an employee.",
+    sensitive: true,
+  },
+
+  // --- Performance --------------------------------------------------------
+  {
+    key: "goal.read.self",
+    label: "View own goals",
+    group: "Performance",
+    description: "See and update progress on one's own goals.",
+  },
+  {
+    key: "goal.read.team",
+    label: "View team goals",
+    group: "Performance",
+    description: "See goals for direct and indirect reports.",
+  },
+  {
+    key: "goal.read.all",
+    label: "View all goals",
+    group: "Performance",
+    description: "See company, department and individual goals org-wide.",
+  },
+  {
+    key: "goal.manage",
+    label: "Set goals",
+    group: "Performance",
+    description: "Create and assign goals, including cascading company goals.",
+  },
+  {
+    key: "review.participate",
+    label: "Take part in reviews",
+    group: "Performance",
+    description: "Write self-reviews and reviews assigned to you.",
+  },
+  {
+    key: "review.read.team",
+    label: "Read team reviews",
+    group: "Performance",
+    description: "Read completed reviews for one's reports.",
+  },
+  {
+    key: "review.read.all",
+    label: "Read all reviews",
+    group: "Performance",
+    description: "Read every review in a cycle, including private notes.",
+    sensitive: true,
+  },
+  {
+    key: "review.cycle.manage",
+    label: "Run review cycles",
+    group: "Performance",
+    description: "Open, advance and close appraisal cycles.",
+  },
+  {
+    key: "oneonone.manage",
+    label: "Log 1:1s",
+    group: "Performance",
+    description: "Record 1:1 agendas, notes and action items with your reports.",
+  },
+
+  // --- Learning -----------------------------------------------------------
+  {
+    key: "course.read",
+    label: "Take courses",
+    group: "Learning",
+    description: "Open assigned courses, work through lessons and take quizzes.",
+  },
+  {
+    key: "course.manage",
+    label: "Manage courses",
+    group: "Learning",
+    description: "Build the course library, write lessons and quizzes, publish.",
+  },
+  {
+    key: "enrollment.manage",
+    label: "Assign training",
+    group: "Learning",
+    description: "Assign courses to people, teams or departments with due dates.",
+  },
+  {
+    key: "enrollment.read.all",
+    label: "Track completion",
+    group: "Learning",
+    description: "See who has completed which training, and who is overdue.",
+  },
+
+  // --- Engagement ---------------------------------------------------------
+  {
     key: "announcement.manage",
     label: "Publish announcements",
-    group: "Insights",
+    group: "Engagement",
     description: "Post company-wide or targeted announcements.",
+  },
+  {
+    key: "survey.respond",
+    label: "Answer surveys",
+    group: "Engagement",
+    description: "Take part in polls, surveys and eNPS pulses.",
+  },
+  {
+    key: "survey.manage",
+    label: "Run surveys",
+    group: "Engagement",
+    description: "Write surveys, open and close them, and read the results.",
+  },
+
+  // --- Exit ---------------------------------------------------------------
+  {
+    key: "exit.request",
+    label: "Resign",
+    group: "Exit",
+    description: "Submit and withdraw one's own resignation.",
+  },
+  {
+    key: "exit.read.all",
+    label: "View exits",
+    group: "Exit",
+    description: "See resignations, clearance progress and exit interviews.",
+  },
+  {
+    key: "exit.manage",
+    label: "Manage exits",
+    group: "Exit",
+    description:
+      "Accept or decline resignations, set the last working day, run clearance.",
+  },
+  {
+    key: "settlement.manage",
+    label: "Settle full & final",
+    group: "Exit",
+    description:
+      "Compute and approve final settlements, including leave encashment and gratuity.",
+    sensitive: true,
+  },
+
+  // --- Platform -----------------------------------------------------------
+  {
+    key: "apikey.manage",
+    label: "Manage API keys",
+    group: "Platform",
+    description:
+      "Issue and revoke keys for the public API. A key can never exceed the permissions granted to it.",
+    sensitive: true,
+  },
+  {
+    key: "webhook.manage",
+    label: "Manage webhooks",
+    group: "Platform",
+    description: "Register endpoints, choose events and inspect delivery history.",
+    sensitive: true,
+  },
+  {
+    key: "branding.manage",
+    label: "Manage branding",
+    group: "Platform",
+    description: "Set the logo, brand colour and login tagline for this instance.",
+  },
+  {
+    key: "integration.manage",
+    label: "Manage integrations",
+    group: "Platform",
+    description: "Connect Slack or Teams so HR alerts land where people work.",
   },
 ] as const satisfies readonly PermissionDef[];
 
@@ -311,6 +766,7 @@ export const SYSTEM_ROLE_KEYS = [
   "org_admin",
   "hr_manager",
   "manager",
+  "recruiter",
   "employee",
 ] as const;
 
@@ -326,6 +782,20 @@ const EMPLOYEE_PERMISSIONS: PermissionKey[] = [
   "attendance.regularize.request",
   "leave.request",
   "leave.read.self",
+  "payroll.read.self",
+  "journey.read.self",
+  "task.complete",
+  "document.read.self",
+  "policy.read",
+  "asset.read.self",
+  "expense.submit",
+  "expense.read.self",
+  "ticket.raise",
+  "goal.read.self",
+  "review.participate",
+  "course.read",
+  "survey.respond",
+  "exit.request",
 ];
 
 /** A manager adds team visibility and approval authority. */
@@ -337,6 +807,34 @@ const MANAGER_PERMISSIONS: PermissionKey[] = [
   "leave.read.team",
   "leave.approve.team",
   "report.read.team",
+  "document.read.team",
+  "expense.read.team",
+  "expense.approve.team",
+  "job.read",
+  "candidate.read",
+  "interview.feedback",
+  "goal.read.team",
+  "goal.manage",
+  "review.read.team",
+  "oneonone.manage",
+];
+
+/**
+ * The recruiter is deliberately *not* a superset of the employee role plus
+ * extras — it is a different shape. Hiring authority without payroll, leave
+ * approval or the employee database is exactly the composition the PRD's
+ * "granular, configurable permission matrix" is meant to make expressible.
+ */
+const RECRUITER_PERMISSIONS: PermissionKey[] = [
+  ...EMPLOYEE_PERMISSIONS,
+  "job.read",
+  "job.manage",
+  "candidate.read",
+  "candidate.manage",
+  "interview.manage",
+  "interview.feedback",
+  "offer.manage",
+  "letter.manage",
 ];
 
 /** HR runs day-to-day operations org-wide, but cannot rewrite the permission
@@ -361,7 +859,59 @@ const HR_MANAGER_PERMISSIONS: PermissionKey[] = [
   "leave.type.manage",
   "leave.balance.adjust",
   "report.read.org",
+  "report.build",
   "announcement.manage",
+
+  // Payroll: HR runs and releases it. Splitting `payroll.run` from
+  // `payroll.approve` exists so an org that wants four eyes on payroll can
+  // build a role that holds only one of them.
+  "payroll.read.all",
+  "payroll.run",
+  "payroll.approve",
+  "payroll.structure.manage",
+  "payroll.statutory.manage",
+  "payroll.compensation.manage",
+  "loan.manage",
+
+  "journey.read.all",
+  "journey.manage",
+  "journey.template.manage",
+
+  "document.read.all",
+  "document.manage",
+  "policy.manage",
+  "letter.manage",
+
+  "asset.read.all",
+  "asset.manage",
+
+  "expense.read.all",
+  "expense.approve.all",
+  "expense.reimburse",
+  "expense.category.manage",
+
+  "ticket.read.all",
+  "ticket.manage",
+  "ticket.category.manage",
+
+  "job.manage",
+  "candidate.manage",
+  "interview.manage",
+  "offer.manage",
+
+  "goal.read.all",
+  "review.read.all",
+  "review.cycle.manage",
+
+  "course.manage",
+  "enrollment.manage",
+  "enrollment.read.all",
+
+  "survey.manage",
+
+  "exit.read.all",
+  "exit.manage",
+  "settlement.manage",
 ];
 
 export interface SystemRoleDef {
@@ -392,6 +942,13 @@ export const SYSTEM_ROLES: SystemRoleDef[] = [
     description:
       "Sees and approves for their own reporting line. No organisation-wide access.",
     permissions: dedupe(MANAGER_PERMISSIONS),
+  },
+  {
+    key: "recruiter",
+    name: "Recruiter",
+    description:
+      "Owns hiring end to end — postings, pipeline, interviews and offers — and nothing else. The PRD's optional recruiter persona, and the clearest demonstration that roles here are compositions of permissions rather than tiers.",
+    permissions: dedupe(RECRUITER_PERMISSIONS),
   },
   {
     key: "employee",

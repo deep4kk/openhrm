@@ -18,13 +18,24 @@ import {
 } from "@/components/ui/sidebar";
 import {
   BarChart3,
+  Briefcase,
   CalendarDays,
+  ClipboardList,
   Clock,
   Cog,
+  DoorOpen,
+  Files,
+  GraduationCap,
   HelpCircle,
+  Laptop,
   LayoutDashboard,
+  LifeBuoy,
+  Megaphone,
+  Receipt,
+  Target,
   Users,
   UserRound,
+  Wallet,
 } from "lucide-react";
 
 import { Logo } from "@/components/brand";
@@ -41,6 +52,17 @@ const ICONS: Record<NavIcon, React.ComponentType<{ className?: string }>> = {
   chart: BarChart3,
   settings: Cog,
   help: HelpCircle,
+  wallet: Wallet,
+  clipboard: ClipboardList,
+  files: Files,
+  laptop: Laptop,
+  receipt: Receipt,
+  lifebuoy: LifeBuoy,
+  briefcase: Briefcase,
+  target: Target,
+  graduation: GraduationCap,
+  megaphone: Megaphone,
+  doorOpen: DoorOpen,
 };
 
 export function AppSidebar({
