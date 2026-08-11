@@ -900,3 +900,126 @@ export async function deleteLeaveTypeAction(id: string): Promise<FormState> {
   revalidatePath("/leave");
   return { success: true };
 }
+
+// ---------------------------------------------------------------------------
+// Letterhead
+// ---------------------------------------------------------------------------
+
+/**
+ * The logo, the registered address and the default signatory.
+ *
+ * These print on every generated letter (PRD §8.14) and are also what the
+ * documents module exposes to templates as {{org.address}} and friends. They
+ * live on the organisation rather than being typed per letter because they are
+ * identical on all of them, and because a wrong registered address on an offer
+ * letter is the kind of mistake nobody notices until it matters.
+ */
+
+/**
+ * How large a logo may be, as raw bytes before base64 expansion.
+ *
+ * The image is stored as a `data:` URI on the organisation row rather than in
+ * object storage — see the comment on Organization.logoUrl for why. That makes
+ * a size limit load-bearing rather than cosmetic: the value is read on every
+ * page render for the sidebar and inlined into every outbound email, so a 4MB
+ * upload would be paid for over and over. 256KB is comfortably more than a
+ * logo needs and small enough that none of that matters.
+ */
+const MAX_LOGO_BYTES = 256 * 1024;
+
+/**
+ * Raster formats plus SVG. SVG is accepted because logos are usually vector and
+ * it prints sharply at any size — but it is also a document format that can
+ * carry script, so it is served exclusively as a `data:` URI in an `<img>`,
+ * where scripts do not execute, and never as a standalone document.
+ */
+const ALLOWED_LOGO_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/svg+xml",
+]);
+
+const letterheadSchema = z.object({
+  letterheadAddress: z
+    .string()
+    .trim()
+    .max(500, "Keep the address under 500 characters")
+    .optional()
+    .transform((v) => (v === "" ? null : (v ?? null))),
+  signatoryName: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .transform((v) => (v === "" ? null : (v ?? null))),
+  signatoryTitle: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .transform((v) => (v === "" ? null : (v ?? null))),
+});
+
+export async function updateLetterheadAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const session = await requireAuth();
+  await assertPermission(session, "org.update");
+
+  const parsed = letterheadSchema.safeParse({
+    letterheadAddress: formData.get("letterheadAddress") ?? undefined,
+    signatoryName: formData.get("signatoryName") ?? undefined,
+    signatoryTitle: formData.get("signatoryTitle") ?? undefined,
+  });
+  if (!parsed.success) return { fieldErrors: fieldErrorsFrom(parsed.error) };
+
+  const db = orgDb(session.org.id);
+  const data: Record<string, unknown> = { ...parsed.data };
+
+  // An empty file input posts a zero-byte File rather than nothing, so size is
+  // what distinguishes "no new logo" from "a logo was chosen".
+  const file = formData.get("logo");
+  if (file instanceof File && file.size > 0) {
+    if (!ALLOWED_LOGO_TYPES.has(file.type)) {
+      return {
+        fieldErrors: { logo: "Use a PNG, JPEG, WebP or SVG image." },
+      };
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      return {
+        fieldErrors: {
+          logo: `That image is ${Math.round(file.size / 1024)}KB. Keep it under ${
+            MAX_LOGO_BYTES / 1024
+          }KB — it only ever renders about 50px tall.`,
+        },
+      };
+    }
+
+    const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
+    data.logoUrl = `data:${file.type};base64,${base64}`;
+  }
+
+  if (formData.get("removeLogo") !== null) data.logoUrl = null;
+
+  await db.organization.update({ where: { id: session.org.id }, data });
+
+  await audit(session, {
+    action: "org.updated",
+    entityType: "Organization",
+    entityId: session.org.id,
+    summary: "Updated the letterhead",
+    after: {
+      hasLogo: data.logoUrl !== null && data.logoUrl !== undefined,
+      signatoryName: parsed.data.signatoryName,
+      signatoryTitle: parsed.data.signatoryTitle,
+    },
+  });
+
+  revalidateSettings("/settings/letterhead");
+  // The logo is rendered in the app shell on every page.
+  revalidatePath("/", "layout");
+  revalidatePath("/documents");
+  return { success: true };
+}

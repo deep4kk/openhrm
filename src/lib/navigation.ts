@@ -109,10 +109,14 @@ export const NAV_SECTIONS: NavSection[] = [
         anyOf: ["journey.read.all", "journey.manage"],
       },
       {
+        // /documents is the letter generator. `letter.manage` is what every
+        // screen behind it requires, so it is what gates the link — listing a
+        // wider set here would put the entry in front of people who would be
+        // bounced to /denied on click.
         title: "Documents",
         href: "/documents",
         icon: "files",
-        anyOf: ["document.read.all", "document.manage", "policy.manage"],
+        anyOf: ["letter.manage"],
       },
       {
         title: "Assets",

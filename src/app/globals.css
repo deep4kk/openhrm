@@ -277,6 +277,67 @@
   .measure {
     max-width: 68ch;
   }
+
+  /*
+   * Draft previews in the documents module.
+   *
+   * The *issued* letter carries its own inline styles — it has to survive being
+   * emailed, where a stylesheet does not reach. This class is only for the
+   * editor and generate-screen previews, which render markdown straight to tags
+   * with no styling of their own. It intentionally follows the app's theme
+   * rather than the printed letter's serif letterhead: this is a draft being
+   * worked on, and pretending otherwise invites someone to treat the preview as
+   * the final document.
+   */
+  .prose-letter {
+    @apply text-sm leading-relaxed;
+  }
+  .prose-letter :where(h1) {
+    @apply mt-0 mb-3 text-base font-semibold tracking-tight;
+  }
+  .prose-letter :where(h2) {
+    @apply mt-5 mb-2 text-[15px] font-semibold;
+  }
+  .prose-letter :where(h3, h4, h5, h6) {
+    @apply mt-4 mb-1.5 text-sm font-semibold;
+  }
+  .prose-letter :where(p) {
+    @apply mb-3;
+  }
+  .prose-letter :where(ul, ol) {
+    @apply mb-3 space-y-1 pl-5;
+  }
+  .prose-letter :where(ul) {
+    @apply list-disc;
+  }
+  .prose-letter :where(ol) {
+    @apply list-decimal;
+  }
+  .prose-letter :where(a) {
+    /* `color` set directly rather than `@apply text-brand` — .text-brand is a
+       hand-written rule in this same layer, not a generated utility, so
+       Tailwind cannot resolve it through @apply. */
+    color: var(--brand-text);
+    @apply underline underline-offset-2;
+  }
+  .prose-letter :where(blockquote) {
+    @apply border-border text-muted-foreground mb-3 border-l-2 pl-3;
+  }
+  .prose-letter :where(hr) {
+    @apply border-border my-5;
+  }
+  .prose-letter :where(code) {
+    @apply bg-muted rounded px-1 py-0.5 font-mono text-xs;
+  }
+  .prose-letter :where(table) {
+    @apply mb-3 w-full border-collapse text-xs;
+  }
+  .prose-letter :where(th) {
+    @apply border-border bg-muted border px-2.5 py-1.5 text-left font-semibold;
+  }
+  .prose-letter :where(td) {
+    @apply border-border border px-2.5 py-1.5;
+  }
 }
 
 /* Scrollbars: present but quiet. */

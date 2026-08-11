@@ -100,6 +100,7 @@ export const TENANT_MODELS = new Set([
   "PolicyAcknowledgement",
   "LetterTemplate",
   "GeneratedLetter",
+  "LetterMailDraft",
   "AssetCategory",
   "Asset",
   "AssetAssignment",

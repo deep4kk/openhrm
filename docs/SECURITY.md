@@ -144,6 +144,44 @@ redacted to a marker, so the *fact* of a change is recorded without the value.
 
 ---
 
+## Rendered HTML
+
+The documents module renders user-authored Markdown to HTML and displays it with
+`dangerouslySetInnerHTML`, prints it, and mails it. Three properties hold that
+down; see [`DOCUMENTS.md`](DOCUMENTS.md) for the reasoning.
+
+**Escaping happens first.** `src/lib/documents/markdown.ts` escapes the entire
+source before any markdown transform runs, so every tag in the output is one the
+module wrote itself. This ordering is the whole defence and it is not optional:
+templates carry `{{placeholders}}` replaced with values that originate in user
+input. Escaping afterwards would mean deciding which `<` was ours and which
+arrived in a variable.
+
+**Link schemes are allow-listed.** Only `https:`, `http:`, `mailto:`, `tel:`,
+fragments and relative paths become an `href`. `javascript:` and `data:` URLs
+render as plain text.
+
+**The stored HTML is trusted because only this code writes it.**
+`generated_letters.renderedHtml` is produced server-side by
+`renderLetterDocument()` and never accepted from a client. An uploaded SVG logo
+is embedded as a `data:` URI inside an `<img>`, where scripts do not execute, and
+is never served as a standalone document.
+
+The printable view is a route handler outside the React tree. It checks the
+session and the `letter.manage` permission itself, and responds
+`cache-control: private, no-store` — a letter is per-recipient and may quote
+salary, so no shared cache should hold it.
+
+### Third-party data flow
+
+AI drafting is the only feature that sends anything off the machine, it is off
+until `GEMINI_API_KEY` is set, and it sends **the template, never the data**: the
+admin's plain-English brief and, when revising, the existing template body. The
+model produces a letter with the placeholders still in it. Employee names,
+salaries and dates are merged in locally, afterwards.
+
+---
+
 ## Reporting a vulnerability
 
 Please open a private security advisory on the repository rather than a public

@@ -550,6 +550,11 @@ const MODULES = [
     what: "Balances that accrue by your own rules, requests that route to the right approver, and a team calendar.",
   },
   {
+    name: "Documents",
+    icon: FileText,
+    what: "Letter templates with mail-merge placeholders — offer, increment, relieving, experience, full and final. Pick a person and their details fill in; the finished letter prints, or goes out as a mail draft you review first.",
+  },
+  {
     name: "Dashboards",
     icon: Layers,
     what: "Headcount, who's in, who's away, and what's waiting on you — scoped to what your role can see.",
@@ -580,6 +585,10 @@ const DATA_MODEL = [
   {
     name: "LeaveType · LeaveBalance · LeaveLedgerEntry · LeaveRequest",
     what: "Accrual rules, the current balance, the append-only history explaining it, and the requests themselves.",
+  },
+  {
+    name: "LetterTemplate · GeneratedLetter · LetterMailDraft",
+    what: "The reusable letter and its typed placeholders, the issued document frozen as it was sent, and the email composed for it — which nothing sends automatically.",
   },
   {
     name: "Notification · Announcement · AuditLog",

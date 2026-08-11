@@ -8,6 +8,7 @@ import {
   Network,
   Palmtree,
   ShieldCheck,
+  Stamp,
 } from "lucide-react";
 
 import { requirePermission, can } from "@/lib/auth";
@@ -110,6 +111,27 @@ export default async function SettingsPage() {
           <Field
             label="Created"
             value={org ? formatDate(org.createdAt) : undefined}
+          />
+        </dl>
+      </Panel>
+
+      <Panel
+        icon={Stamp}
+        title="Letterhead"
+        description="Printed on every document generated from the Documents screen."
+        action={
+          can(session, "org.update") && (
+            <ManageLink href="/settings/letterhead" label="Edit letterhead" />
+          )
+        }
+      >
+        <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-3">
+          <Field label="Logo" value={org?.logoUrl ? "Uploaded" : "Not set"} />
+          <Field label="Signatory" value={org?.signatoryName} />
+          <Field label="Signatory title" value={org?.signatoryTitle} />
+          <Field
+            label="Registered address"
+            value={org?.letterheadAddress?.replace(/\n/g, ", ")}
           />
         </dl>
       </Panel>

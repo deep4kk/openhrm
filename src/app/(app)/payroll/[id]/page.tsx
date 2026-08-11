@@ -5,7 +5,7 @@ import { ChevronLeft, Users } from "lucide-react";
 
 import { can, requirePermission } from "@/lib/auth";
 import { getPayrollRun } from "@/lib/queries/payroll";
-import { periodLabel } from "@/lib/actions/payroll";
+import { periodLabel } from "@/lib/payroll/period";
 import { formatDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { PageHeader, PageShell, EmptyState } from "@/components/page-header";

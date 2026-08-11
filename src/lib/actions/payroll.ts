@@ -11,6 +11,7 @@ import { emitWebhook } from "../webhooks";
 import { toDateOnly } from "../dates";
 import { formatMoney } from "../money";
 import { calculatePayslip } from "../payroll/engine";
+import { periodLabel } from "../payroll/period";
 import {
   lossOfPayDays,
   toEngineComponents,
@@ -34,14 +35,8 @@ import type { FormState } from "./auth";
  * otherwise would just add clicks.
  */
 
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-export function periodLabel(month: number, year: number): string {
-  return `${MONTHS[month - 1] ?? month} ${year}`;
-}
+// periodLabel lives in ../payroll/period because every export of a "use server"
+// module has to be an async server action, and it is a plain string helper.
 
 // ---------------------------------------------------------------------------
 // Runs

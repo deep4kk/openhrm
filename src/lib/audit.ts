@@ -107,6 +107,7 @@ export type AuditAction =
   | "letter.template.saved"
   | "letter.template.deleted"
   | "letter.generated"
+  | "letter.mailed"
   | "letter.signed"
 
   // Assets

@@ -20,10 +20,29 @@ interface MailInput {
   html?: string;
 }
 
+/**
+ * What actually happened to a message.
+ *
+ * `sendMail` still never throws — a failed leave-decision notification must not
+ * roll back the decision — but callers who are showing a human the result need
+ * to tell "delivered" from "printed to the console because SMTP is unset". The
+ * documents module marks a mail draft as sent based on this, so the distinction
+ * cannot stay buried in a log line.
+ */
+export type MailResult =
+  | { status: "sent" }
+  | { status: "logged" }
+  | { status: "failed"; error: string };
+
 let transporter: nodemailer.Transporter | null = null;
 
 function isConfigured(): boolean {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_HOST.trim());
+}
+
+/** Whether outbound mail will actually leave the machine. Read by the UI. */
+export function isMailConfigured(): boolean {
+  return isConfigured();
 }
 
 function getTransporter(): nodemailer.Transporter {
@@ -45,7 +64,7 @@ function getTransporter(): nodemailer.Transporter {
   return transporter;
 }
 
-export async function sendMail(input: MailInput): Promise<void> {
+export async function sendMail(input: MailInput): Promise<MailResult> {
   const from = process.env.SMTP_FROM ?? "OpenHRM <no-reply@openhrm.local>";
 
   if (!isConfigured()) {
@@ -61,7 +80,7 @@ export async function sendMail(input: MailInput): Promise<void> {
         "",
       ].join("\n"),
     );
-    return;
+    return { status: "logged" };
   }
 
   try {
@@ -72,10 +91,16 @@ export async function sendMail(input: MailInput): Promise<void> {
       text: input.text,
       html: input.html,
     });
+    return { status: "sent" };
   } catch (error) {
     // A failed notification email must not roll back the action that triggered
-    // it — the leave request was still approved.
+    // it — the leave request was still approved. Callers that need to react to
+    // the failure read the returned status instead.
     console.error("[mail] delivery failed", { to: input.to, error });
+    return {
+      status: "failed",
+      error: error instanceof Error ? error.message : "Delivery failed",
+    };
   }
 }
 

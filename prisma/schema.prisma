@@ -152,6 +152,11 @@ model Organization {
   id                   String   @id @default(cuid())
   name                 String
   slug                 String   @unique
+  /// A `data:` URI, not a link. The logo is small, it has to render inside
+  /// letters and outbound email — where a relative URL is broken and a remote
+  /// one is blocked by most mail clients — and keeping it in the row means it
+  /// travels with the database backup instead of needing its own bucket.
+  /// Capped in the upload action; see src/lib/actions/settings.ts.
   logoUrl              String?
   industry             String?
   website              String?
@@ -182,6 +187,18 @@ model Organization {
   /// Sequence source for helpdesk ticket numbers, so #1 means "first ticket
   /// this organisation raised" rather than a global counter.
   ticketSequence       Int      @default(0)
+
+  // --- Letterhead (PRD §8.14) ---------------------------------------------
+  // Printed on every generated letter and exposed to templates as
+  // {{org.address}}, {{org.signatoryName}} and {{org.signatoryTitle}}. Held on
+  // the organisation rather than typed per letter because they are the same on
+  // all of them, and a wrong registered address on an offer letter is the kind
+  // of mistake nobody notices until it matters.
+  letterheadAddress    String?
+  signatoryName        String?
+  signatoryTitle       String?
+  /// Sequence source for letter reference numbers (OL/2026/0001).
+  letterSequence       Int      @default(0)
 
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -227,6 +244,7 @@ model Organization {
   policyAcknowledgements PolicyAcknowledgement[]
   letterTemplates       LetterTemplate[]
   generatedLetters      GeneratedLetter[]
+  letterMailDrafts      LetterMailDraft[]
   assetCategories       AssetCategory[]
   assets                Asset[]
   assetAssignments      AssetAssignment[]
@@ -301,6 +319,8 @@ model User {
   documentsUploaded     EmployeeDocument[]     @relation("DocumentUploader")
   policiesAuthored      Policy[]               @relation("PolicyAuthor")
   lettersIssued         GeneratedLetter[]      @relation("LetterIssuer")
+  letterTemplatesWritten LetterTemplate[]      @relation("LetterTemplateAuthor")
+  mailDraftsComposed    LetterMailDraft[]      @relation("MailDraftAuthor")
   assetsIssued          AssetAssignment[]      @relation("AssetIssuer")
   ticketComments        TicketComment[]        @relation("CommentAuthor")
   jobsCreated           JobPosting[]           @relation("JobCreatedBy")
@@ -1386,23 +1406,46 @@ model PolicyAcknowledgement {
   @@map("policy_acknowledgements")
 }
 
-/// Offer, experience, relieving and increment letters, with mail-merge tokens
-/// like {{employee.firstName}} resolved at generation time.
+/// Offer, experience, relieving, increment and full-and-final letters, with
+/// mail-merge tokens like {{employee.firstName}} resolved at generation time.
 model LetterTemplate {
-  id       String  @id @default(cuid())
-  orgId    String
-  name     String
-  /// offer | experience | relieving | increment | confirmation | custom
-  kind     String  @default("custom")
-  subject  String
-  body     String
-  isActive Boolean @default(true)
+  id          String  @id @default(cuid())
+  orgId       String
+  name        String
+  /// offer | appointment | confirmation | increment | promotion | warning |
+  /// experience | relieving | fnf | custom. Deliberately a String rather than
+  /// an enum: an organisation inventing a letter type we never thought of
+  /// should not need a migration.
+  kind        String  @default("custom")
+  description String?
+  subject     String
+  /// Markdown. Rendered to print-ready HTML at generation time — see
+  /// src/lib/documents/markdown.ts. Markdown rather than HTML because the
+  /// person editing it is an HR admin, not a front-end developer, and because
+  /// it is what the model writes most reliably.
+  body        String
+  /// The typed variable contract for this template: an array of
+  /// { key, label, type, required, source, defaultValue, helpText }.
+  /// Drives the generate form — which inputs appear, which are date pickers,
+  /// which prefill from the employee record. Kept alongside the body rather
+  /// than parsed out of it so a variable can carry a label and a type that the
+  /// {{token}} alone cannot express.
+  variables   Json    @default("[]")
+  /// The plain-English brief the admin gave the model, kept so the template can
+  /// be regenerated or refined later without retyping it.
+  aiBrief     String?
+  isActive    Boolean @default(true)
 
-  org     Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  letters GeneratedLetter[]
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org       Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdBy User?             @relation("LetterTemplateAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  letters   GeneratedLetter[]
 
   @@unique([orgId, name])
-  @@index([orgId])
+  @@index([orgId, isActive])
   @@map("letter_templates")
 }
 
@@ -1412,8 +1455,26 @@ model GeneratedLetter {
   templateId  String?
   employeeId  String?
   candidateId String?
+  /// Reference number — OL/2026/0001. Drawn from Organization.letterSequence,
+  /// so it is per-organisation and gapless rather than a global counter.
+  letterNumber String?
   title       String
+  /// Who it was addressed to, denormalised. A letter may be issued to a
+  /// candidate who is not yet an Employee row, or to someone whose record is
+  /// later deleted — the issued document still has to say whose it was.
+  recipientName  String
+  recipientEmail String?
+  /// The resolved markdown, after token substitution.
   body        String
+  /// The finished document, frozen at issue time.
+  ///
+  /// Re-rendering from the template on demand would be smaller, but it would
+  /// mean editing a template silently rewrites letters already issued under
+  /// it — including the logo and registered address in the letterhead. A
+  /// letter is a record of what was sent, so it is stored as such.
+  renderedHtml String
+  /// The variable values used, for the audit trail and for reissuing.
+  variables   Json      @default("{}")
   issuedById  String?
   issuedAt    DateTime  @default(now())
   /// Basic e-signature: the signer types their name and we keep when and from
@@ -1428,9 +1489,50 @@ model GeneratedLetter {
   employee  Employee?       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   candidate Candidate?      @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   issuedBy  User?           @relation("LetterIssuer", fields: [issuedById], references: [id], onDelete: SetNull)
+  mailDrafts LetterMailDraft[]
 
   @@index([orgId, employeeId])
+  @@index([orgId, issuedAt])
   @@map("generated_letters")
+}
+
+enum MailDraftStatus {
+  DRAFT
+  SENT
+  FAILED
+}
+
+/// The "draft a mail for me" half of letter generation.
+///
+/// Issuing a letter composes a message rather than sending one. Nothing leaves
+/// the building until a human opens the draft, reads it and presses send —
+/// which is the right default when the thing being mailed is an offer or a
+/// termination, and when the recipient address was typed by hand a moment ago.
+model LetterMailDraft {
+  id        String          @id @default(cuid())
+  orgId     String
+  letterId  String
+  to        String
+  cc        String?
+  subject   String
+  /// Plain-text covering note. The letter itself is appended as styled HTML
+  /// when the message is sent.
+  body      String
+  status    MailDraftStatus @default(DRAFT)
+  sentAt    DateTime?
+  /// Why the last send attempt failed, shown on the draft so it is actionable.
+  error     String?
+  createdById String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  org       Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  letter    GeneratedLetter @relation(fields: [letterId], references: [id], onDelete: Cascade)
+  createdBy User?           @relation("MailDraftAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([orgId, status])
+  @@index([orgId, letterId])
+  @@map("letter_mail_drafts")
 }
 
 // ---------------------------------------------------------------------------

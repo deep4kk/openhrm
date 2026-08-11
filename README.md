@@ -24,7 +24,9 @@ This repository is **Phase 1** of [the roadmap](prd.md#14-release-roadmap-phased
 | Employee self-service | ✅ Built |
 | Dashboards & reports | ✅ Built |
 | Notifications (in-app + email) | ✅ Built |
-| Payroll, ATS, performance, LMS | Later phases — not in this build |
+| Payroll — structures, runs, payslips, India compliance | ✅ Built |
+| Documents — letter templates, generation, mail drafts | ✅ Built |
+| ATS, performance, LMS | Later phases — not in this build |
 
 The in-app **About** page documents how each part works, including the full
 permission matrix, generated from the same code the server enforces.
@@ -176,9 +178,41 @@ gunzip -c openhrm-2026-08-05.sql.gz | docker compose exec -T postgres psql -U po
 - **Tailwind v4** with semantic tokens defined for light and dark together.
 - **bcrypt** for passwords, **AES-256-GCM** for bank and government-ID columns,
   append-only audit log for consequential actions.
+- **No PDF library and no object storage.** Letters are inline-styled HTML that
+  the browser prints to PDF via its own `@page` rules, and the company logo is a
+  `data:` URI on the organisation row. Both decisions are explained in
+  [`docs/DOCUMENTS.md`](docs/DOCUMENTS.md).
 
-More detail: [`docs/SECURITY.md`](docs/SECURITY.md), and the About page inside
-the app.
+More detail: [`docs/SECURITY.md`](docs/SECURITY.md),
+[`docs/DOCUMENTS.md`](docs/DOCUMENTS.md), and the About page inside the app.
+
+---
+
+## Documents
+
+Generate offer, increment, relieving, experience and full-and-final letters from
+templates, and mail them.
+
+1. **Settings → Letterhead** — upload a logo, set the registered address and the
+   signatory. These print on every document.
+2. **Documents → Templates** — write the letter once in Markdown, with
+   `{{placeholders}}` for anything that changes per person. Describe what you
+   want and Gemini drafts it for you, or write it by hand.
+3. **Documents → New document** — pick the template and the person. Their name,
+   designation, joining date, reporting line and salary breakdown fill in from
+   their record; every field stays editable.
+4. **Issue it** — the finished letter is frozen as it was sent, gets a reference
+   number (`OL/2026/0001`), prints to PDF from the browser, and appears as an
+   editable **mail draft**. Nothing is emailed until you press Send.
+
+Salary placeholders are gated on `employee.compensation.read` — someone without
+it gets blank fields to type into rather than a refusal. The whole module sits
+behind the `letter.manage` permission.
+
+AI drafting is optional: set `GEMINI_API_KEY` to enable it. Without a key the
+panel is replaced by a note explaining how to turn it on, and everything else
+works. Only your plain-English brief is sent to Google — never employee data,
+which is merged in locally after the model has finished.
 
 ---
 
@@ -198,9 +232,14 @@ src/
     auth.ts              sessions, password rules, permission gates
     crypto.ts            field encryption, token hashing
     scope.ts             turns a permission scope into a set of employees
+    mail.ts              SMTP, with a console fallback when unconfigured
+    payroll/             the salary engine and India compliance pack
+    documents/           letter templates: markdown, mail-merge, rendering
+    ai/gemini.ts         optional AI drafting, over plain fetch
     actions/             server actions (writes)
     queries/             reads, scoped by the caller's permissions
   components/            UI, grouped by module
+docs/                    SECURITY.md, DOCUMENTS.md
 docker/                  entrypoint and first-boot database role setup
 ```
 
