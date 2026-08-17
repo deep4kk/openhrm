@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   Award,
   Building2,
@@ -7,11 +8,12 @@ import {
   MapPin,
   Network,
   Palmtree,
+  Plug,
   ShieldCheck,
   Stamp,
 } from "lucide-react";
 
-import { requirePermission, can } from "@/lib/auth";
+import { requirePermission, can, canAny } from "@/lib/auth";
 import { orgDb } from "@/lib/db";
 import { formatDate } from "@/lib/dates";
 import { MONTHS, WEEKDAYS } from "@/lib/locale";
@@ -372,14 +374,89 @@ export default async function SettingsPage() {
           </ul>
 
           {can(session, "role.manage") && (
-            <div className="mt-4 border-t pt-4">
-              <LinkButton href="/about#permissions" variant="outline" size="sm">
-                See the permission matrix
+            <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
+              <LinkButton href="/settings/roles" variant="outline" size="sm">
+                Edit roles &amp; people
+              </LinkButton>
+              <LinkButton href="/about#permissions" variant="ghost" size="sm">
+                See the full matrix
               </LinkButton>
             </div>
           )}
         </Panel>
       </div>
+
+      <Panel
+        icon={Plug}
+        title="Platform"
+        description="The parts that connect this instance to everything else."
+      >
+        <ul className="grid gap-3 sm:grid-cols-2">
+          <PlatformLink
+            href="/settings/custom-fields"
+            title="Custom fields"
+            description="Extra fields on the employee record."
+            visible={can(session, "customfield.manage")}
+          />
+          <PlatformLink
+            href="/settings/branding"
+            title="Branding & integrations"
+            description="Colour, tagline, domain, Slack and Teams."
+            visible={canAny(session, "branding.manage", "integration.manage")}
+          />
+          <PlatformLink
+            href="/settings/api-keys"
+            title="API keys"
+            description="Credentials for the public read API."
+            visible={can(session, "apikey.manage")}
+          />
+          <PlatformLink
+            href="/settings/webhooks"
+            title="Webhooks"
+            description="Push events to another system as they happen."
+            visible={can(session, "webhook.manage")}
+          />
+          <PlatformLink
+            href="/settings/audit-log"
+            title="Audit log"
+            description="Who changed what, and when."
+            visible={can(session, "audit.read")}
+          />
+          <PlatformLink
+            href="/journeys/templates"
+            title="Checklist templates"
+            description="Onboarding and exit clearance tasks."
+            visible={can(session, "journey.template.manage")}
+          />
+        </ul>
+      </Panel>
     </PageShell>
+  );
+}
+
+/** One destination in the platform grid, hidden when it would 403 on click. */
+function PlatformLink({
+  href,
+  title,
+  description,
+  visible,
+}: {
+  href: string;
+  title: string;
+  description: string;
+  visible: boolean;
+}) {
+  if (!visible) return null;
+
+  return (
+    <li>
+      <Link
+        href={href}
+        className="hover:bg-muted/50 focus-visible:ring-ring block rounded-lg border p-3 transition-colors outline-none focus-visible:ring-3"
+      >
+        <p className="text-sm font-medium">{title}</p>
+        <p className="text-muted-foreground mt-0.5 text-xs">{description}</p>
+      </Link>
+    </li>
   );
 }

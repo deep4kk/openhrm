@@ -12,11 +12,28 @@ import { Button } from "@/components/ui/button";
  */
 export function LinkButton({
   href,
+  target,
   children,
   ...props
-}: React.ComponentProps<typeof Button> & { href: string }) {
+}: React.ComponentProps<typeof Button> & {
+  href: string;
+  /** For the few links that genuinely leave the app — the public careers page. */
+  target?: React.HTMLAttributeAnchorTarget;
+}) {
   return (
-    <Button {...props} nativeButton={false} render={<Link href={href} />}>
+    <Button
+      {...props}
+      nativeButton={false}
+      render={
+        <Link
+          href={href}
+          target={target}
+          // Any new tab we open gets noopener: the opened page must not be able
+          // to reach back through window.opener.
+          rel={target === "_blank" ? "noopener noreferrer" : undefined}
+        />
+      }
+    >
       {children}
     </Button>
   );

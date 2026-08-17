@@ -6,6 +6,9 @@ import { ChevronLeft, Mail, Pencil, Phone } from "lucide-react";
 import { requirePermission, can } from "@/lib/auth";
 import { getEmployee } from "@/lib/queries/employees";
 import { getSalaryHistory, listSalaryStructures } from "@/lib/queries/payroll";
+import { getEmployeeDocuments } from "@/lib/queries/policies";
+import { getEmployeeAssets } from "@/lib/queries/assets";
+import { DocumentVault } from "@/components/documents/document-vault";
 import { CompensationPanel } from "@/components/payroll/compensation-panel";
 import { canReachEmployee } from "@/lib/scope";
 import { maskTail, decryptFieldSafe } from "@/lib/crypto";
@@ -74,6 +77,21 @@ export default async function EmployeeProfilePage({
         listSalaryStructures(session),
       ])
     : [[], []];
+
+  // The vault reaches further than the record: `document.read.team` lets a
+  // manager see non-confidential files for their reports without holding
+  // `employee.read.team`, so it gets its own gate rather than riding on
+  // `fullRecord`.
+  const showDocuments =
+    isSelf ||
+    can(session, "document.read.all") ||
+    can(session, "document.manage") ||
+    (can(session, "document.read.team") && inFullScope);
+
+  const [documents, assets] = await Promise.all([
+    showDocuments ? getEmployeeDocuments(session, id) : Promise.resolve([]),
+    fullRecord ? getEmployeeAssets(session, id) : Promise.resolve([]),
+  ]);
 
   const fullName = `${employee.firstName} ${employee.lastName}`.trim();
 
@@ -250,6 +268,62 @@ export default async function EmployeeProfilePage({
                   )}
                   maskedPan={maskTail(decryptFieldSafe(employee.panNumberEnc))}
                 />
+              </Panel>
+            )}
+
+            {showDocuments && (
+              <DocumentVault
+                employeeId={employee.id}
+                employeeName={fullName}
+                canManage={can(session, "document.manage")}
+                documents={documents.map((doc) => ({
+                  id: doc.id,
+                  name: doc.name,
+                  category: doc.category,
+                  fileName: doc.fileName,
+                  sizeBytes: doc.sizeBytes,
+                  issuedOn: doc.issuedOn ? formatDate(doc.issuedOn) : null,
+                  expiresOn: doc.expiresOn ? formatDate(doc.expiresOn) : null,
+                  daysToExpiry: doc.expiresOn
+                    ? Math.round(
+                        (doc.expiresOn.getTime() - Date.now()) / 86_400_000,
+                      )
+                    : null,
+                  isConfidential: doc.isConfidential,
+                  uploadedBy: doc.uploadedBy?.name ?? null,
+                  uploadedOn: formatDate(doc.createdAt),
+                }))}
+              />
+            )}
+
+            {assets.length > 0 && (
+              <Panel title="Company assets">
+                <ul className="divide-y">
+                  {assets.map((assignment) => (
+                    <li
+                      key={assignment.id}
+                      className="flex items-center justify-between gap-3 py-2.5 first:pt-0"
+                    >
+                      <div>
+                        <Link
+                          href={`/assets/${assignment.asset.id}`}
+                          className="text-sm font-medium hover:underline"
+                        >
+                          {assignment.asset.name}
+                        </Link>
+                        <p className="text-muted-foreground text-xs">
+                          {assignment.asset.category?.name ?? "Uncategorised"} ·{" "}
+                          <span className="font-mono">
+                            {assignment.asset.assetTag}
+                          </span>
+                        </p>
+                      </div>
+                      <span className="text-muted-foreground text-xs tabular-nums">
+                        since {formatDate(assignment.issuedOn)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </Panel>
             )}
           </div>

@@ -20,12 +20,13 @@ export const metadata: Metadata = { title: "Reports" };
  *
  * Deliberately a short page of questions people actually ask — headcount,
  * where everyone sits, how attendance is trending, how much leave is being
- * used — rather than a chart wall. Anything that needs slicing belongs in the
- * custom report builder, which is a later phase.
+ * used — rather than a chart wall. Anything that needs slicing goes to the
+ * report builder, linked at the top.
  */
 export default async function ReportsPage() {
   const session = await requirePermission("report.read.org", "report.read.team");
   const orgWide = can(session, "report.read.org");
+  const mayBuild = can(session, "report.build");
 
   const db = orgDb(session.org.id);
   const { year } = currentLeaveYear(session);

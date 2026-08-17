@@ -94,7 +94,7 @@ typing `/settings` as the employee lands on `/denied`, not a blank page.
 | What you see | What it means | Fix |
 |---|---|---|
 | "That email and password don't match an account" | The demo data isn't loaded | `npm run db:seed` |
-| A database connection error | `npm run db:dev` isn't running, or its port changed | Restart it and copy the printed `DATABASE_URL` into `.env` |
+| A database connection error | The local Postgres stopped (it does not survive a reboot) | `npm run dev` restarts it automatically; if its port changed, copy the printed `DATABASE_URL` into `.env` |
 | "Too many failed attempts" | 8 wrong tries in 10 minutes | Wait 10 minutes, or restart `npm run dev` to clear it |
 
 `npm run db:seed` is safe to re-run at any time — it deletes the demo

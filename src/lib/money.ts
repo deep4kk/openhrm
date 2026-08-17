@@ -10,8 +10,25 @@
  * the organisation's own currency setting.
  */
 
+/**
+ * What these formatters accept.
+ *
+ * Money lives in Postgres as `Decimal`, and Prisma hands it back as a Decimal
+ * object rather than a number — deliberately, so a currency value never loses
+ * precision on the way through. Every one of these functions already narrows
+ * with `Number()` as its first act, so the type is widened to match rather than
+ * making forty call sites write `Number(payslip.netPay)` and eventually forget
+ * one.
+ */
+export type MoneyInput =
+  | number
+  | string
+  | { toString(): string }
+  | null
+  | undefined;
+
 export function formatMoney(
-  amount: number | string | null | undefined,
+  amount: MoneyInput,
   currency = "INR",
   options: { decimals?: boolean } = {},
 ): string {
@@ -27,10 +44,7 @@ export function formatMoney(
 }
 
 /** Bare number with grouping — for table columns that share one currency header. */
-export function formatAmount(
-  amount: number | string | null | undefined,
-  decimals = 0,
-): string {
+export function formatAmount(amount: MoneyInput, decimals = 0): string {
   const value = Number(amount ?? 0);
   if (!Number.isFinite(value)) return "—";
   return new Intl.NumberFormat("en-IN", {
@@ -45,7 +59,7 @@ export function formatAmount(
  * would be said aloud in the market this targets.
  */
 export function formatCompactMoney(
-  amount: number | string | null | undefined,
+  amount: MoneyInput,
   currency = "INR",
 ): string {
   const value = Number(amount ?? 0);
