@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Clock } from "lucide-react";
 
 import { requirePermission } from "@/lib/auth";
+import type { AuthContext } from "@/lib/auth";
+import { TableSkeleton } from "@/components/skeletons";
 import {
   getTodayBoard,
   getTodaySummary,
@@ -22,16 +25,24 @@ import {
 
 export const metadata: Metadata = { title: "Attendance" };
 
+/**
+ * Today's board.
+ *
+ * The four tiles come from four grouped counts; the table below them reads
+ * every person in scope and their record for today, which is the heavier half
+ * by some margin. They used to be awaited together, so the summary — the part
+ * most people are actually here for — waited on the table.
+ *
+ * Now the page awaits only the summary, and the board streams into a Suspense
+ * boundary underneath it.
+ */
 export default async function AttendancePage() {
   const session = await requirePermission(
     "attendance.read.all",
     "attendance.read.team",
   );
 
-  const [board, summary] = await Promise.all([
-    getTodayBoard(session),
-    getTodaySummary(session),
-  ]);
+  const summary = await getTodaySummary(session);
 
   return (
     <PageShell>
@@ -67,6 +78,19 @@ export default async function AttendancePage() {
       <section>
         <h2 className="mb-3 text-sm font-semibold">Today</h2>
 
+        <Suspense fallback={<TableSkeleton rows={8} cols={6} />}>
+          <Board session={session} />
+        </Suspense>
+      </section>
+    </PageShell>
+  );
+}
+
+async function Board({ session }: { session: AuthContext }) {
+  const board = await getTodayBoard(session);
+
+  return (
+    <>
         <div className="surface overflow-hidden">
           {board.length === 0 ? (
             <EmptyState
@@ -146,7 +170,6 @@ export default async function AttendancePage() {
             </div>
           )}
         </div>
-      </section>
-    </PageShell>
+    </>
   );
 }

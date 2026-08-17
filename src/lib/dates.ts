@@ -179,18 +179,40 @@ export function formatDateRange(start: Date, end: Date): string {
   return `${formatDateShort(start)} – ${formatDate(end)}`;
 }
 
-/** Wall-clock time in a given zone, for check-in/out stamps. */
+/**
+ * Wall-clock time in a given zone, for check-in/out stamps.
+ *
+ * The formatter is kept per zone rather than rebuilt per call. Constructing an
+ * Intl.DateTimeFormat is not free — it resolves a locale and loads timezone
+ * data — and the attendance board calls this twice for every person on it, so
+ * a thirty-person team was paying for sixty formatters to render one table.
+ * The map stays small in practice: it is keyed by timezone, and an
+ * organisation has one.
+ */
+const TIME_FORMATS = new Map<string, Intl.DateTimeFormat>();
+
+function timeFormatFor(timeZone: string): Intl.DateTimeFormat {
+  let format = TIME_FORMATS.get(timeZone);
+  if (!format) {
+    format = new Intl.DateTimeFormat("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone,
+    });
+    TIME_FORMATS.set(timeZone, format);
+  }
+  return format;
+}
+
 export function formatTime(
   value: Date | string | null | undefined,
   timeZone = "UTC",
 ): string {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-    timeZone,
-  }).format(typeof value === "string" ? new Date(value) : value);
+  return timeFormatFor(timeZone).format(
+    typeof value === "string" ? new Date(value) : value,
+  );
 }
 
 /** "7h 45m" — durations read better than decimal hours on a timesheet. */

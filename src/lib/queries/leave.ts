@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { orgDb } from "../db";
 import type { AuthContext } from "../auth";
 import { resolveEmployeeScope, employeeIdFilter } from "../scope";
@@ -144,8 +146,15 @@ export async function getMyLeaveRequests(
  * `leave.approve.all` sees everything pending; `leave.approve.team` sees only
  * their reporting subtree. A manager never sees, let alone decides, a peer's
  * request.
+ *
+ * Wrapped in React's `cache` because the dashboard needs this count in two
+ * places that stream independently — the header button and the stat tile — and
+ * they must not become two queries. The key is the `session` object's identity,
+ * which is stable within a request because getSession() is itself cached.
  */
-export async function getPendingApprovals(session: AuthContext) {
+export const getPendingApprovals = cache(async function getPendingApprovals(
+  session: AuthContext,
+) {
   const db = orgDb(session.org.id);
 
   const scope = await resolveEmployeeScope(session, "leave.approve");
@@ -180,7 +189,7 @@ export async function getPendingApprovals(session: AuthContext) {
     },
     orderBy: [{ startDate: "asc" }],
   });
-}
+});
 
 /** Everything in the caller's read scope — the org-wide leave register. */
 export async function listLeaveRequests(
@@ -216,8 +225,18 @@ export async function listLeaveRequests(
   });
 }
 
-/** Who is away today — used on the dashboard and the team calendar. */
-export async function getWhoIsOut(session: AuthContext, on = new Date()) {
+/**
+ * Who is away today — used on the dashboard and the team calendar.
+ *
+ * Cached for the same reason as getPendingApprovals: the dashboard reads it
+ * from two streaming sections. Callers that pass an explicit `on` date get
+ * their own cache entry, which is correct — a different day is a different
+ * question.
+ */
+export const getWhoIsOut = cache(async function getWhoIsOut(
+  session: AuthContext,
+  on = new Date(),
+) {
   const db = orgDb(session.org.id);
   const date = toDateOnly(on);
 
@@ -241,7 +260,7 @@ export async function getWhoIsOut(session: AuthContext, on = new Date()) {
     },
     orderBy: [{ endDate: "asc" }],
   });
-}
+});
 
 /** Approved leave overlapping a window, for the team calendar. */
 export async function getLeaveInRange(

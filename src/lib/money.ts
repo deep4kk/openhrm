@@ -27,6 +27,29 @@ export type MoneyInput =
   | null
   | undefined;
 
+/**
+ * Formatters, kept rather than rebuilt.
+ *
+ * Constructing an Intl.NumberFormat costs real time, and a payroll run or an
+ * expense report calls these once per cell — a few hundred times on one screen.
+ * The distinct combinations are few (a currency, with or without paise), so
+ * they are cached under a composite key and reused for the life of the process.
+ */
+const NUMBER_FORMATS = new Map<string, Intl.NumberFormat>();
+
+function numberFormat(
+  locale: string,
+  options: Intl.NumberFormatOptions,
+): Intl.NumberFormat {
+  const key = `${locale}|${options.style ?? ""}|${options.currency ?? ""}|${options.notation ?? ""}|${options.minimumFractionDigits ?? ""}|${options.maximumFractionDigits ?? ""}`;
+  let format = NUMBER_FORMATS.get(key);
+  if (!format) {
+    format = new Intl.NumberFormat(locale, options);
+    NUMBER_FORMATS.set(key, format);
+  }
+  return format;
+}
+
 export function formatMoney(
   amount: MoneyInput,
   currency = "INR",
@@ -35,7 +58,7 @@ export function formatMoney(
   const value = Number(amount ?? 0);
   if (!Number.isFinite(value)) return "—";
 
-  return new Intl.NumberFormat("en-IN", {
+  return numberFormat("en-IN", {
     style: "currency",
     currency,
     minimumFractionDigits: options.decimals ? 2 : 0,
@@ -47,7 +70,7 @@ export function formatMoney(
 export function formatAmount(amount: MoneyInput, decimals = 0): string {
   const value = Number(amount ?? 0);
   if (!Number.isFinite(value)) return "—";
-  return new Intl.NumberFormat("en-IN", {
+  return numberFormat("en-IN", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(value);
@@ -80,7 +103,7 @@ export function formatCompactMoney(
     return `${symbol}${Math.round(value)}`;
   }
 
-  return new Intl.NumberFormat("en-US", {
+  return numberFormat("en-US", {
     style: "currency",
     currency,
     notation: "compact",
@@ -97,7 +120,7 @@ function trim(value: number): string {
 
 export function currencySymbol(currency: string): string {
   try {
-    const parts = new Intl.NumberFormat("en-IN", {
+    const parts = numberFormat("en-IN", {
       style: "currency",
       currency,
     }).formatToParts(0);

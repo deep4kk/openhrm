@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { orgDb } from "../db";
 import type { AuthContext } from "../auth";
 import { resolveEmployeeScope, employeeSelfFilter } from "../scope";
@@ -200,35 +202,53 @@ export async function headcountByDepartment(session: AuthContext) {
     .sort((a, b) => b.count - a.count);
 }
 
-export async function headcountSummary(session: AuthContext) {
+/**
+ * The five numbers the dashboard and the reports page both open with.
+ *
+ * Three of them — active, on leave, on notice — are just slices of the same
+ * status column, so they come back as one grouped query instead of three
+ * separate COUNTs. That matters more than it looks: a page here is bounded by
+ * how many times it crosses the wire, not by how much work Postgres does once
+ * it gets there, and this turned five round trips into three.
+ *
+ * Cached on the session object so the dashboard's stat row and its chart
+ * captions — which stream as separate Suspense boundaries — share one set of
+ * counts rather than issuing six queries between them.
+ */
+export const headcountSummary = cache(async function headcountSummary(
+  session: AuthContext,
+) {
   const db = orgDb(session.org.id);
 
-  const [active, onLeave, notice, joinedThisMonth, exitedThisYear] =
-    await Promise.all([
-      db.employee.count({ where: { status: { in: ["ACTIVE", "ON_LEAVE"] } } }),
-      db.employee.count({ where: { status: "ON_LEAVE" } }),
-      db.employee.count({ where: { status: "NOTICE_PERIOD" } }),
-      db.employee.count({
-        where: {
-          dateOfJoining: {
-            gte: new Date(
-              Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1),
-            ),
-          },
-        },
-      }),
-      db.employee.count({
-        where: {
-          status: "EXITED",
-          dateOfExit: {
-            gte: new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1)),
-          },
-        },
-      }),
-    ]);
+  const now = new Date();
+  const monthStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+  );
+  const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
 
-  return { active, onLeave, notice, joinedThisMonth, exitedThisYear };
-}
+  const [byStatus, joinedThisMonth, exitedThisYear] = await Promise.all([
+    db.employee.groupBy({ by: ["status"], _count: { _all: true } }),
+    db.employee.count({ where: { dateOfJoining: { gte: monthStart } } }),
+    db.employee.count({
+      where: { status: "EXITED", dateOfExit: { gte: yearStart } },
+    }),
+  ]);
+
+  const count = (status: string) =>
+    byStatus.find((row) => row.status === status)?._count._all ?? 0;
+
+  const onLeave = count("ON_LEAVE");
+
+  return {
+    // "Active" has always meant currently employed, which includes someone
+    // away on approved long leave.
+    active: count("ACTIVE") + onLeave,
+    onLeave,
+    notice: count("NOTICE_PERIOD"),
+    joinedThisMonth,
+    exitedThisYear,
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Org chart

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { orgDb } from "../db";
 import type { AuthContext } from "../auth";
 import { resolveEmployeeScope, employeeIdFilter } from "../scope";
@@ -130,7 +132,16 @@ export async function getMonthSummary(
 }
 
 /** Headline numbers for today, used by the dashboards. */
-export async function getTodaySummary(session: AuthContext) {
+/**
+ * Today's board totals.
+ *
+ * Cached on the session because the dashboard stat row and the attendance page
+ * header ask the same question, and on the dashboard it now streams inside its
+ * own Suspense boundary.
+ */
+export const getTodaySummary = cache(async function getTodaySummary(
+  session: AuthContext,
+) {
   const db = orgDb(session.org.id);
   const today = toDateOnly(new Date());
   const weekday = isoWeekday(today);
@@ -163,7 +174,7 @@ export async function getTodaySummary(session: AuthContext) {
     ),
     isWorkingDay,
   };
-}
+});
 
 /** Daily present-count for the last N days — the dashboard trend line. */
 export async function getAttendanceTrend(session: AuthContext, days = 14) {
